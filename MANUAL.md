@@ -1,0 +1,109 @@
+# enVector MCP Server User Manual
+## Description
+This document let users know how to use `enVector MCP Server`
+
+## Repository Structure (Essentials Only)
+```bash
+srcs/
+ ├─ server.py               # MCP Server(HTTP mode)
+ └─ adapters/
+     └─ enVector_sdk.py     # `enVector` SDK Adapter (Class)
+examples/
+ └─ ...                     # Example Codes
+tests/
+ └─ ...                     # Test Codes (pyTest)
+requirements.txt            # List of Required Package
+README.md                   # Introduction of `enVector MCP Server` GitHub repository
+MANUAL.md                   # User Manual
+```
+
+## Basic requirements
+- Python 3.10+ (3.12 recommended)
+- Packages
+    ```bash
+    pip install -r requirements.txt
+    ```
+- Environment Variable Set-Up
+    + Use `.env` file (Recommended)
+        ```bash
+        source .env
+        ```
+
+## Run (Server/Client)
+### How to use (MCP Server - HTTP)
+```bash
+# For now... (Will be replace by runner script)
+python srcs/server.py
+# -> Wait at http://localhost:8000/mcp
+```
+
+### How to use (Client)
+1. Attach to IDE or else
+
+    ex. `VS Code`, `Claude`, etc.
+     - Please follow decription of each module
+
+2. Use Python client (FastMCP Client)
+
+    For example,
+    ```python
+    import asyncio
+    from fastmcp import Client
+
+    async def main():
+        client = Client("http://localhost:8000/mcp")
+        async with client:
+            tools = await client.list_tools()
+            print([t.name for t in tools])  # ['search', ...]
+
+            result = await client.call_tool(
+                "search", {"index_name": "test_index_name", ...}
+                # and so on...
+            )
+
+            print(result)           # Instance
+            # print(result.data)    # JSON (Different from version) 
+            # print(result.content) # Text Block (or else)
+
+    asyncio.run(main())
+    ```
+
+3. Use `curl`
+
+    Basix format is `JSON-RPC 2.0`
+    1) List up tool-list: `tools/list`
+        ```bash
+        curl -sS -X POST http://localhost:8000/mcp \
+            -H 'Content-Type: application/json' \
+            -d '{
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/list",
+                "params": {}
+            }'
+        ```
+
+    2) Run tool: `tools/call`
+        ```bash
+        curl -sS -X POST http://localhost:8000/mcp \
+            -H 'Content-Type: application/json' \
+            -d '{
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                "name": "tool_name",
+                "arguments": { "paramA": "valueA", "paramB": valueB }
+                }
+            }'
+        ```
+
+## Fast Trouble Shooting
+### Error List
+- 404/405:
+    + Is URL `/mcp`?
+    + Is HTTP method `Post`?
+- Unknown tool:
+    + Is tool name correct?
+- Input type error:
+    + Check TypeHint

@@ -1,0 +1,80 @@
+# Summary of file: enVector SDK Adapter(enVector APIs Caller)
+
+from typing import Union, List, Dict, Any
+import numpy as np
+import es2  # pip install es2
+
+class EnVectorSDKAdapter:
+    """
+    Adapter class to interact with the enVector SDK.
+    """
+    def __init__(
+            self,
+            endpoint: str,
+            port: int,
+            key_id: str,
+            eval_mode: str
+        ):
+        """
+        Initializes the EnVectorSDKAdapter with an optional endpoint.
+        
+        Args:
+            endpoint (Optional[str]): The endpoint URL for the enVector SDK.
+            port (Optional[int]): The port number for the enVector SDK.
+        """
+        self.endpoint = endpoint
+        self.port = port
+        es2.init(f"{self.endpoint}:{self.port}", key_path="./keys", key_id=key_id, eval_mode=eval_mode)
+
+    def call_search(self, index_name: str, query: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]], topk: int) -> Dict[str, Any]:
+        """
+        Calls the enVector SDK to perform a search operation.
+        
+        Args:
+            index_name (str): The name of the index to search.
+            query (str): The search query.
+            topk (int): The number of top results to return.
+
+        Returns:
+            Dict[str, Any]: If succeed, converted format of the search results. Otherwise, error message.
+        """
+        try:
+            index = es2.Index(index_name) # Create an index instance with the given index name
+            results = index.search(query, topk=topk, output_fields=["metadata"]) # Return Type: List[Dict[str, Any]]
+            # Search with the provided query and topk
+            # Fixed output_fields parameter for now
+            return self._to_json_available({"ok": True, "results": results})
+        except Exception as e:
+            # Handle exceptions and return an appropriate error message
+            return {"ok": False, "error": repr(e)}
+
+    @staticmethod
+    def _to_json_available(obj: Any) -> Any:
+        """
+        Converts an object to a JSON-serializable format if possible.
+        
+        Args:
+            obj (Any): The object to convert.
+
+        Returns:
+            Any: The JSON-serializable representation of the object, or the original object if conversion is not possible.
+        """
+        if obj is None or isinstance(obj, (str, int, float, bool)):
+            return obj
+        if isinstance(obj, dict):
+            return {str(k): EnVectorSDKAdapter._to_json_available(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple, set)):
+            return [EnVectorSDKAdapter._to_json_available(item) for item in obj]
+        for attr in ("model_dump", "dict", "to_dict"):
+            if hasattr(obj, attr):
+                try:
+                    return EnVectorSDKAdapter._to_json_available(getattr(obj, attr)())
+                except Exception:
+                    pass
+        if hasattr(obj, "__dict__"):
+            try:
+                return {k: EnVectorSDKAdapter._to_json_available(v) for k, v in obj.__dict__.items() if not k.startswith("_")}
+            except Exception:
+                pass
+        return repr(obj)
+
