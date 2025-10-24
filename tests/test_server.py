@@ -50,7 +50,7 @@ async def test_tools_list_contains_search(mcp_server):
 async def test_call_tool_happy_path(mcp_server):
     async with Client(mcp_server) as client:
         result = await client.call_tool(
-            "search", 
+            "search",
             {
                 "index_name": "test_index",
                 "query": [0.1, 0.2, 0.3],
@@ -81,12 +81,12 @@ async def test_call_tool_invalid_args_type_error(mcp_server):
         # Invalid parameter value for query
         with pytest.raises(Exception):
             await client.call_tool(
-                "search", 
+                "search",
                 {
                     "index_name": "test_index",
                     "query": "this_should_be_a_list_of_floats",  # Invalid type
                     "topk": 5
                 }
-            ) # Expected to raise an exception due to invalid argument type    
+            ) # Expected to raise an exception due to invalid argument type
 
 # ----------- Search Tool Tests Finished ----------- #

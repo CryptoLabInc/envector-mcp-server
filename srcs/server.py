@@ -57,7 +57,7 @@ class MCPServerApp:
         #         PlainTextResponse: A simple "OK" response indicating server health.
         #     """
         #     return PlainTextResponse("OK", status_code=200)
-        
+
         # ---------- MCP Tools: Search ---------- #
         @self.mcp.tool(name="envector_search", description="Search using enVector SDK")
         async def tool_envector_search(
@@ -68,7 +68,7 @@ class MCPServerApp:
             """
             MCP tool to perform search using the enVector SDK adapter.
             Call the adapter's call_search method.
-            
+
             Args:
                 index_name (str): The name of the index to search.
                 query (Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]]): The search query.
@@ -82,7 +82,7 @@ class MCPServerApp:
     def run_http_service(self, host: str, port: int) -> None:
         """
         Runs the MCP server as an HTTP service.
-        
+
         Args:
             host (str): The host address to bind the server.
             port (int): The port number to bind the server.

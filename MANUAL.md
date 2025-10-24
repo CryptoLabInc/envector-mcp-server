@@ -62,7 +62,7 @@ python srcs/server.py
             )
 
             print(result)           # Instance
-            # print(result.data)    # JSON (Different from version) 
+            # print(result.data)    # JSON (Different from version)
             # print(result.content) # Text Block (or else)
 
     asyncio.run(main())

@@ -55,7 +55,7 @@ As `enVector` is vector search engine based on HE, this `enVector MCP Server` ca
     + Each terminal(devices) user just need to add `enVector MCP Server` on their AI assistant (or else).
 
 - Expectation
-    
+
     With pre-defined protocol that `enVector MCP Server` uses, all 'secured-data search' will be processed automatically.
 
 ## Languages Support

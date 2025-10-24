@@ -17,7 +17,7 @@ class EnVectorSDKAdapter:
         ):
         """
         Initializes the EnVectorSDKAdapter with an optional endpoint.
-        
+
         Args:
             endpoint (Optional[str]): The endpoint URL for the enVector SDK.
             port (Optional[int]): The port number for the enVector SDK.
@@ -29,7 +29,7 @@ class EnVectorSDKAdapter:
     def call_search(self, index_name: str, query: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]], topk: int) -> Dict[str, Any]:
         """
         Calls the enVector SDK to perform a search operation.
-        
+
         Args:
             index_name (str): The name of the index to search.
             query (str): The search query.
@@ -52,7 +52,7 @@ class EnVectorSDKAdapter:
     def _to_json_available(obj: Any) -> Any:
         """
         Converts an object to a JSON-serializable format if possible.
-        
+
         Args:
             obj (Any): The object to convert.
 
@@ -77,4 +77,3 @@ class EnVectorSDKAdapter:
             except Exception:
                 pass
         return repr(obj)
-
