@@ -1,4 +1,4 @@
 .env
 .pre-commit-config.yaml
-*/keys/*
+**/keys/**
 __pycache__/
