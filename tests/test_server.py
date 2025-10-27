@@ -14,7 +14,7 @@ if SRCS not in sys.path:
 
 from fastmcp import Client
 from server import MCPServerApp
-from adapters.enVector_sdk import EnVectorSDKAdapter
+from adapter.enVector_sdk import EnVectorSDKAdapter
 
 @pytest.fixture
 def mcp_server():
@@ -30,9 +30,9 @@ def mcp_server():
         def invoke_search(self, index_name: str, query: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]], topk: int):
             # Return a fake response
             #   - Expected Return Type: List[Dict[str, Any]]
-            return {"ok": True, "results": [{"id": 1, "score": 0.9, "metadata": {"fieldA": "valueA"}}]}
+            return [{"id": 1, "score": 0.9, "metadata": {"fieldA": "valueA"}}]
 
-    app = MCPServerApp(adapter=FakeAdapter(), server_name="test-mcp")
+    app = MCPServerApp(adapter=FakeAdapter(), mcp_server_name="test-mcp")
     return app.mcp  # FastMCP Instance
 
 # ----------- Search Tool Tests ----------- #

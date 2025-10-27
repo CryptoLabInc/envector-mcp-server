@@ -24,7 +24,7 @@ if CURRENT_DIR not in sys.path:
     sys.path.append(CURRENT_DIR)
 
 from fastmcp import FastMCP  # pip install fastmcp
-from adapters.enVector_sdk import EnVectorSDKAdapter
+from adapter.enVector_sdk import EnVectorSDKAdapter
 
 # # For Health Check (Starlette Imports -> Included in FastMCP as dependency)
 # from starlette.requests import Request
@@ -46,7 +46,7 @@ class MCPServerApp:
             mcp_server_name (str): The name of the MCP server.
         """
         self.adapter = adapter
-        self.mcp = FastMCP(server_name=mcp_server_name)
+        self.mcp = FastMCP(name=mcp_server_name)
 
         # # ---------- Health Check Route ---------- #
         # @self.mcp.custom_route("/health/", methods=["GET"])
@@ -59,10 +59,10 @@ class MCPServerApp:
         #     return PlainTextResponse("OK", status_code=200)
 
         # ---------- MCP Tools: Search ---------- #
-        @self.mcp.tool(name="envector_search", description="Search using enVector SDK")
-        async def tool_envector_search(
+        @self.mcp.tool(name="search", description="Search using enVector SDK")
+        async def tool_search(
                 index_name: str,
-                query: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]],
+                query: Union[List[float], List[List[float]]],
                 topk: int
             ) -> Dict[str, Any]:
             """
@@ -77,6 +77,10 @@ class MCPServerApp:
             Returns:
                 Dict[str, Any]: The search results from the enVector SDK adapter.
             """
+            if isinstance(query, np.ndarray):
+                query = query.tolist()
+            elif isinstance(query, list) and all(isinstance(q, np.ndarray) for q in query):
+                query = [q.tolist() for q in query]
             return self.adapter.call_search(index_name=index_name, query=query, topk=topk)
 
     def run_http_service(self, host: str, port: int) -> None:

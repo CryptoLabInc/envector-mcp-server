@@ -26,7 +26,7 @@ class EnVectorSDKAdapter:
         self.port = port
         es2.init(f"{self.endpoint}:{self.port}", key_path="./keys", key_id=key_id, eval_mode=eval_mode)
 
-    def call_search(self, index_name: str, query: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]], topk: int) -> Dict[str, Any]:
+    def call_search(self, index_name: str, query: Union[List[float], List[List[float]]], topk: int) -> Dict[str, Any]:
         """
         Calls the enVector SDK to perform a search operation.
 
@@ -39,14 +39,27 @@ class EnVectorSDKAdapter:
             Dict[str, Any]: If succeed, converted format of the search results. Otherwise, error message.
         """
         try:
-            index = es2.Index(index_name) # Create an index instance with the given index name
-            results = index.search(query, topk=topk, output_fields=["metadata"]) # Return Type: List[Dict[str, Any]]
-            # Search with the provided query and topk
-            # Fixed output_fields parameter for now
+            results = self.invoke_search(index_name=index_name, query=query, topk=topk)
             return self._to_json_available({"ok": True, "results": results})
         except Exception as e:
             # Handle exceptions and return an appropriate error message
             return {"ok": False, "error": repr(e)}
+
+    def invoke_search(self, index_name: str, query: Union[List[float], List[List[float]]], topk: int):
+        """
+        Invokes the enVector SDK's search functionality.
+
+        Args:
+            index_name (str): The name of the index to search.
+            query (Union[List[float], List[List[float]]]): The search query.
+            topk (int): The number of top results to return.
+
+        Returns:
+            Any: Raw search results from the enVector SDK.
+        """
+        index = es2.Index(index_name)  # Create an index instance with the given index name
+        # Search with the provided query and topk. Fixed output_fields parameter for now.
+        return index.search(query, topk=topk, output_fields=["metadata"])
 
     @staticmethod
     def _to_json_available(obj: Any) -> Any:
