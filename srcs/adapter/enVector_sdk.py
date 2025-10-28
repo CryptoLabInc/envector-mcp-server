@@ -24,7 +24,7 @@ class EnVectorSDKAdapter:
         """
         self.endpoint = endpoint
         self.port = port
-        es2.init(host=self.endpoint, port=self.port, key_path="./keys", key_id=key_id, eval_mode=eval_mode)
+        es2.init(host=self.endpoint, port=self.port, key_path="./keys", key_id=key_id, eval_mode=eval_mode, auto_key_setup=False)
 
     def call_search(self, index_name: str, query: Union[List[float], List[List[float]]], topk: int) -> Dict[str, Any]:
         """
@@ -59,7 +59,7 @@ class EnVectorSDKAdapter:
         """
         index = es2.Index(index_name)  # Create an index instance with the given index name
         # Search with the provided query and topk. Fixed output_fields parameter for now.
-        return index.search(query, topk=topk, output_fields=["metadata"])
+        return index.search(query, top_k=topk, output_fields=["metadata"])
 
     @staticmethod
     def _to_json_available(obj: Any) -> Any:
