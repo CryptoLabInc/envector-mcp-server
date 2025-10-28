@@ -25,6 +25,10 @@ class EnVectorSDKAdapter:
         self.endpoint = endpoint
         self.port = port
         es2.init(host=self.endpoint, port=self.port, key_path="./keys", key_id=key_id, eval_mode=eval_mode, auto_key_setup=False)
+        # Why auto_key_setup=False?
+        #   - For now, only `search` is supported, so assume that key set-up is done beforehand while creating indexes and insert data.
+        #   - So, as set `auto_key_setup` value to `False`, mis-matched key error can be avoided.
+        #   - After `insert` tool has been implemented, this value should be changed to `True` (default).
 
     def call_search(self, index_name: str, query: Union[List[float], List[List[float]]], topk: int) -> Dict[str, Any]:
         """
