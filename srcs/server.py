@@ -14,6 +14,7 @@ Expected MCP Tool Return Format:
 }
 """
 
+import argparse
 from typing import Union, List, Dict, Any
 import numpy as np
 import os, sys, signal
@@ -93,8 +94,57 @@ class MCPServerApp:
         """
         self.mcp.run(transport="http", host=host, port=port)
 
+    def run_stdio_service(self) -> None:
+        """
+        Runs the MCP server using stdio transport (for local integrations).
+        """
+        self.mcp.run(transport="stdio")
+
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run the enVector MCP server.")
+    parser.add_argument(
+        "--mode",
+        choices=("local", "remote"),
+        default=os.getenv("MCP_SERVER_MODE", "remote"),
+        help="Execution mode: 'local' uses stdio transport, 'remote' exposes HTTP transport.",
+    )
+    parser.add_argument("--host", default=os.getenv("MCP_SERVER_HOST", "127.0.0.1"), help="HTTP bind host.")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.getenv("MCP_SERVER_PORT", 8000)),
+        help="HTTP bind port.",
+    )
+    parser.add_argument(
+        "--server-name",
+        default=os.getenv("MCP_SERVER_NAME", "envector_mcp_server"),
+        help="Advertised MCP server name.",
+    )
+    parser.add_argument(
+        "--envector-endpoint",
+        default=os.getenv("ENVECTOR_ENDPOINT", "127.0.0.1"),
+        help="enVector endpoint hostname or IP.",
+    )
+    parser.add_argument(
+        "--envector-port",
+        type=int,
+        default=int(os.getenv("ENVECTOR_PORT", 50050)),
+        help="enVector endpoint port.",
+    )
+    parser.add_argument(
+        "--envector-key-id",
+        default=os.getenv("ENVECTOR_KEY_ID", "mcp_key"),
+        help="enVector key identifier.",
+    )
+    parser.add_argument(
+        "--envector-eval-mode",
+        default=os.getenv("ENVECTOR_EVAL_MODE", "mm"),
+        help="enVector evaluation mode (e.g., 'mm', 'rmp').",
+    )
+    args = parser.parse_args()
+    run_mode = args.mode.lower()
+
     # Environment Variables for MCP Server Configuration
     """
     Environment Variables for MCP Server Configuration:
@@ -102,9 +152,9 @@ if __name__ == "__main__":
     - MCP_SERVER_PORT: The port number for the MCP server (default: 8000)
     - MCP_SERVER_NAME: The name of the MCP server (default: "envector_mcp_server")
     """
-    MCP_HOST = os.getenv("MCP_SERVER_HOST", "127.0.0.1")
-    MCP_PORT = int(os.getenv("MCP_SERVER_PORT", 8000))
-    MCP_SERVER_NAME = os.getenv("MCP_SERVER_NAME", "envector_mcp_server")
+    MCP_HOST = args.host
+    MCP_PORT = args.port
+    MCP_SERVER_NAME = args.server_name
 
     # Environment Variables for enVector SDK Configuration
     """
@@ -114,10 +164,10 @@ if __name__ == "__main__":
     - ENVECTOR_KEY_ID: The key ID for the `enVector` SDK (default: "mcp_key")
     - ENVECTOR_EVAL_MODE: The evaluation mode of the `enVector` ["rmp", "mm"] (default: "mm")
     """
-    ENVECTOR_ENDPOINT = os.getenv("ENVECTOR_ENDPOINT", "127.0.0.1")
-    ENVECTOR_PORT = int(os.getenv("ENVECTOR_PORT", 50050))
-    ENVECTOR_KEY_ID = os.getenv("ENVECTOR_KEY_ID", "mcp_key")
-    ENVECTOR_EVAL_MODE = os.getenv("ENVECTOR_EVAL_MODE", "mm")
+    ENVECTOR_ENDPOINT = args.envector_endpoint
+    ENVECTOR_PORT = args.envector_port
+    ENVECTOR_KEY_ID = args.envector_key_id
+    ENVECTOR_EVAL_MODE = args.envector_eval_mode
 
     adapter = EnVectorSDKAdapter(
         endpoint=ENVECTOR_ENDPOINT,
@@ -135,6 +185,11 @@ if __name__ == "__main__":
         if sig is not None:
             signal.signal(sig, _handle_shutdown)
     try:
-        app.run_http_service(host=MCP_HOST, port=MCP_PORT)
+        if run_mode == "local":
+            print("[INFO] Running MCP server in local stdio mode.", flush=True)
+            app.run_stdio_service()
+        else:
+            print(f"[INFO] Running MCP server in remote HTTP mode at {MCP_HOST}:{MCP_PORT}.", flush=True)
+            app.run_http_service(host=MCP_HOST, port=MCP_PORT)
     finally:
         print("[INFO] MCP server stopped.", flush=True)

@@ -71,7 +71,38 @@ python srcs/server.py
 3. Use `curl`
 
     Basix format is `JSON-RPC 2.0`
-    1) List up tool-list: `tools/list`
+    1) Create Session
+        ```bash
+        curl -i -X POST http://localhost:8000/mcp \
+        -H 'Content-Type: application/json' \
+        -H 'Accept: application/json, text/event-stream' \
+        -d '{
+            "jsonrpc":"2.0",
+            "id":1,
+            "method":"initialize",
+            "params":{
+            "protocolVersion":"2025-06-18",
+            "capabilities":{"sampling":{}, "elicitation":{}},
+            "clientInfo":{"name":"curl-test","version":"0.1.0"}
+            }
+        }'
+        ```
+
+    2) Notice Initialization Completed
+        ```bash
+        curl -i -X POST http://localhost:8000/mcp \
+        -H 'Content-Type: application/json' \
+        -H 'Accept: application/json, text/event-stream' \
+        -H 'MCP-Protocol-Version: 2025-06-18' \
+        -H 'Mcp-Session-Id: {RESPONSED SESSION ID}' \
+        -d '{
+            "jsonrpc":"2.0",
+            "method":"notifications/initialized"
+        }'
+
+        ```
+
+    3) List up tool-list: `tools/list`
         ```bash
         curl -sS -X POST http://localhost:8000/mcp \
             -H 'Content-Type: application/json' \
@@ -83,7 +114,7 @@ python srcs/server.py
             }'
         ```
 
-    2) Run tool: `tools/call`
+    4) Run tool: `tools/call`
         ```bash
         curl -sS -X POST http://localhost:8000/mcp \
             -H 'Content-Type: application/json' \
