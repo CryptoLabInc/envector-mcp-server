@@ -4,6 +4,12 @@ from typing import Union, List, Dict, Any
 import numpy as np
 import es2  # pip install es2
 
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).parent.resolve()
+KEY_PATH = SCRIPT_DIR / "keys"
+KEY_PATH.mkdir(exist_ok=True)
+
 class EnVectorSDKAdapter:
     """
     Adapter class to interact with the enVector SDK.
@@ -24,7 +30,7 @@ class EnVectorSDKAdapter:
         """
         self.endpoint = endpoint
         self.port = port
-        es2.init(host=self.endpoint, port=self.port, key_path="./keys", key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
+        es2.init(host=self.endpoint, port=self.port, key_path=KEY_PATH, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
 
     def call_search(self, index_name: str, query: Union[List[float], List[List[float]]], topk: int) -> Dict[str, Any]:
         """
