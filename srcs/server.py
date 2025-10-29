@@ -179,17 +179,11 @@ if __name__ == "__main__":
     def _handle_shutdown(signum, frame):
         # parameter `frame` is not used, but required to get stack frame info from signal module
         sig_name = signal.Signals(signum).name if hasattr(signal, "Signals") else str(signum)
-        print(f"\n[INFO] Received {sig_name}. Shutting down MCP server...", flush=True)
         raise SystemExit(0)
     for sig in (signal.SIGINT, getattr(signal, "SIGTERM", None)):
         if sig is not None:
             signal.signal(sig, _handle_shutdown)
-    try:
-        if run_mode == "local":
-            print("[INFO] Running MCP server in local stdio mode.", flush=True)
-            app.run_stdio_service()
-        else:
-            print(f"[INFO] Running MCP server in remote HTTP mode at {MCP_HOST}:{MCP_PORT}.", flush=True)
-            app.run_http_service(host=MCP_HOST, port=MCP_PORT)
-    finally:
-        print("[INFO] MCP server stopped.", flush=True)
+    if run_mode == "local":
+        app.run_stdio_service()
+    else:
+        app.run_http_service(host=MCP_HOST, port=MCP_PORT)
