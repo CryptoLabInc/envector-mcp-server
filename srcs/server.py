@@ -127,6 +127,7 @@ if __name__ == "__main__":
     )
     app = MCPServerApp(adapter=adapter, mcp_server_name=MCP_SERVER_NAME)
     def _handle_shutdown(signum, frame):
+        # parameter `frame` is not used, but required to get stack frame info from signal module
         sig_name = signal.Signals(signum).name if hasattr(signal, "Signals") else str(signum)
         print(f"\n[INFO] Received {sig_name}. Shutting down MCP server...", flush=True)
         raise SystemExit(0)
