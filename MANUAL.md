@@ -5,7 +5,7 @@ This document let users know how to use `enVector MCP Server`
 ## Repository Structure (Essentials Only)
 ```bash
 srcs/
- ├─ server.py               # MCP Server(HTTP mode)
+ ├─ server.py               # MCP Server entrypoint (HTTP/STDIO modes)
  └─ adapters/
      └─ enVector_sdk.py     # `enVector` SDK Adapter (Class)
 examples/
@@ -28,14 +28,30 @@ MANUAL.md                   # User Manual
         ```bash
         source .env
         ```
+    + CLI overrides (optional)
+        Every setting has default value, but, you can chech option with `python srcs/server.py --help` and overwrite each value with CLI.
 
 ## Run (Server/Client)
-### How to use (MCP Server - HTTP)
+### How to use (MCP Server)
 ```bash
-# For now... (Will be replace by runner script)
-python srcs/server.py
-# -> Wait at http://localhost:8000/mcp
+# Remote HTTP mode (default)
+python srcs/server.py --mode remote \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --server-name envector_mcp_server \
+    --envector-endpoint 127.0.0.1 \
+    --envector-port 50050 \
+    --envector-key-id mcp_key \
+    --envector-eval-mode mm
+
+# Local STDIO mode (for MCP desktop integrations)
+python srcs/server.py --mode local
 ```
+- If omitted, all parameter follows
+    1) `.env`
+    2) Evironment Variable
+    3) Default Values
+- `STDIO` mode communicate with standard I/O only, so log might not be seen. Please connect to MCP Host.
 
 ### How to use (Client)
 1. Attach to IDE or else
