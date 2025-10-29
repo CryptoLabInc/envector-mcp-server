@@ -16,7 +16,7 @@ Expected MCP Tool Return Format:
 
 from typing import Union, List, Dict, Any
 import numpy as np
-import os, sys
+import os, sys, signal
 
 # Ensure current directory is in sys.path for module imports
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -126,4 +126,14 @@ if __name__ == "__main__":
         eval_mode=ENVECTOR_EVAL_MODE
     )
     app = MCPServerApp(adapter=adapter, mcp_server_name=MCP_SERVER_NAME)
-    app.run_http_service(host=MCP_HOST, port=MCP_PORT)
+    def _handle_shutdown(signum, frame):
+        sig_name = signal.Signals(signum).name if hasattr(signal, "Signals") else str(signum)
+        print(f"\n[INFO] Received {sig_name}. Shutting down MCP server...", flush=True)
+        raise SystemExit(0)
+    for sig in (signal.SIGINT, getattr(signal, "SIGTERM", None)):
+        if sig is not None:
+            signal.signal(sig, _handle_shutdown)
+    try:
+        app.run_http_service(host=MCP_HOST, port=MCP_PORT)
+    finally:
+        print("[INFO] MCP server stopped.", flush=True)
