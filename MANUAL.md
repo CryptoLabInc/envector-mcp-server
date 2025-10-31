@@ -67,7 +67,7 @@ python srcs/server.py --mode local
                 "args": [
                     "/path/to/envector-mcp-server/srcs/server.py",
                     "--mode",
-                    "local", 
+                    "local",
                     "--envector-endpoint",
                     "IP",
                     "--envector-port",

@@ -30,7 +30,7 @@ class EnVectorSDKAdapter:
         """
         self.endpoint = endpoint
         self.port = port
-        es2.init(host=self.endpoint, port=self.port, key_path=KEY_PATH, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
+        es2.init(host=self.endpoint, port=self.port, key_path=str(KEY_PATH), key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
 
     def call_search(self, index_name: str, query: Union[List[float], List[List[float]]], topk: int) -> Dict[str, Any]:
         """
