@@ -77,7 +77,7 @@ class EnVectorSDKAdapter:
 
         Args:
             index_name (str): The name of the index to search.
-            query (str): The search query.
+            query (Union[List[float], List[List[float]]]): The search query.
             topk (int): The number of top results to return.
 
         Returns:
