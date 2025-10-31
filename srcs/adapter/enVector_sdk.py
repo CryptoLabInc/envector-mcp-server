@@ -67,7 +67,7 @@ class EnVectorSDKAdapter:
         """
         index = es2.Index(index_name)  # Create an index instance with the given index name
         # Insert vectors with optional metadata
-        return index.insert(vectors=vectors, metadata=metadata)
+        return index.insert(data=vectors, metadata=metadata)
 
     #------------------- Search ------------------#
 
