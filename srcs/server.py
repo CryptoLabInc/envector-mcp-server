@@ -162,7 +162,7 @@ if __name__ == "__main__":
     - ENVECTOR_ENDPOINT: The endpoint URL of the `enVector` (default: "127.0.0.1")
     - ENVECTOR_PORT: The port number of the `enVector` (default: 50050)
     - ENVECTOR_KEY_ID: The key ID for the `enVector` SDK (default: "mcp_key")
-    - ENVECTOR_EVAL_MODE: The evaluation mode of the `enVector` ["rmp", "mm"] (default: "mm")
+    - ENVECTOR_EVAL_MODE: The evaluation mode of the `enVector` ["rmp", "mm"] (default: "rmp")
     """
     ENVECTOR_ENDPOINT = args.envector_endpoint
     ENVECTOR_PORT = args.envector_port

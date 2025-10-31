@@ -29,7 +29,7 @@ MANUAL.md                   # User Manual
         source .env
         ```
     + CLI overrides (optional)
-        Every setting has default value, but, you can chech option with `python srcs/server.py --help` and overwrite each value with CLI.
+        Every setting has default value, but, you can check option with `python srcs/server.py --help` and overwrite each value with CLI.
 
 ## Run (Server/Client)
 ### How to use (MCP Server)
@@ -57,7 +57,7 @@ python srcs/server.py --mode local
 1. Attach to IDE or else
 
     ex. `VS Code`, `Claude`, etc.
-     - Please follow decription of each module
+     - Please follow description of each module
      - For example, (Claude Desktop)
         ```json
         {
@@ -105,7 +105,7 @@ python srcs/server.py --mode local
 
 3. Use `curl`
 
-    Basix format is `JSON-RPC 2.0`
+    Basic format is `JSON-RPC 2.0`
     1) Create Session
         ```bash
         curl -i -X POST http://localhost:8000/mcp \

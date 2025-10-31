@@ -37,7 +37,7 @@ As `enVector` is vector search engine based on HE, this `enVector MCP Server` ca
     3. Then AI decrypt scoreboard and require most appropriate vector's metadata to secured DB.
     4. After get response, AI decrypt dataset and show it to user.
 
-- SW Developer, who is affiliated at some SW Dev Team, is runnig new project.
+- SW Developer, who is affiliated at some SW Dev Team, is running new project.
     + They wanna refer to their previous project to reuse some codes.
     + They are using code assistant module
     + Their previous project is under protection with private repository.
