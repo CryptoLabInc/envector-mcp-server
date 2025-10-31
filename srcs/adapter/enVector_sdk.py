@@ -44,7 +44,7 @@ class EnVectorSDKAdapter:
             metadata (List[Any], optional): The list of metadata associated with the vectors. Defaults to None.
 
         Returns:
-            The index object after insertion. User has no need to care about returned index object.
+            Dict[str, Any]: If succeed, converted format of the insert results. Otherwise, error message.
         """
         try:
             results = self.invoke_insert(index_name=index_name, vectors=vectors, metadata=metadata)
@@ -67,7 +67,7 @@ class EnVectorSDKAdapter:
         """
         index = es2.Index(index_name)  # Create an index instance with the given index name
         # Insert vectors with optional metadata
-        return index.insert(data=vectors, metadata=metadata)
+        return index.insert(data=vectors, metadata=metadata) # Return list of inserted vectors' IDs
 
     #------------------- Search ------------------#
 

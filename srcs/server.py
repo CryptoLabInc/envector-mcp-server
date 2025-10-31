@@ -101,7 +101,7 @@ class MCPServerApp:
                 metadata (Optional[List[Any]]): The list of metadata associated with the vectors.
 
             Returns:
-                es2.Index: The index object after insertion. User has no need to care about returned index object.
+                Dict[str, Any]: The insert results from the enVector SDK adapter.
             """
             if isinstance(vectors, np.ndarray):
                 vectors = vectors.tolist()
