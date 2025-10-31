@@ -15,9 +15,7 @@ Expected MCP Tool Return Format:
 """
 
 import argparse
-from typing import Union, List, Dict, Any
-import es2  # pip install es2
-from es2.crypto.block import CipherBlock
+from typing import Union, List, Dict, Any, Optional
 import numpy as np
 import os, sys, signal
 
@@ -65,7 +63,7 @@ class MCPServerApp:
         @self.mcp.tool(name="search", description="Search using enVector SDK")
         async def tool_search(
                 index_name: str,
-                query: Union[List[float], List[List[float]], np.ndarray, List[np.ndarray]],
+                query: Union[List[float], List[List[float]]],
                 topk: int
             ) -> Dict[str, Any]:
             """
@@ -74,7 +72,7 @@ class MCPServerApp:
 
             Args:
                 index_name (str): The name of the index to search.
-                query (Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]]): The search query.
+                query (Union[List[float], List[List[float]]]): The search query.
                 topk (int): The number of top results to return.
 
             Returns:
@@ -90,17 +88,17 @@ class MCPServerApp:
         @self.mcp.tool(name="insert", description="Insert vectors using enVector SDK")
         async def tool_insert(
                 index_name: str,
-                vectors: Union[List[List[float]], List[np.ndarray], np.ndarray, List[CipherBlock]],
-                metadata: List[Any] = None
-            ) -> es2.Index:
+                vectors: Union[List[float], List[List[float]]],
+                metadata: Optional[List[Any]] = None
+            ) -> Dict[str, Any]:
             """
             MCP tool to perform insert using the enVector SDK adapter.
             Call the adapter's call_insert method.
 
             Args:
                 index_name (str): The name of the index to insert into.
-                vectors (Union[List[List[float]], List[np.ndarray], np.ndarray, List[CipherBlock]]): The list of vectors to insert.
-                metadata (List[Any], optional): The list of metadata associated with the vectors. Defaults to None.
+                vectors (Union[List[float], List[List[float]]]): The vector(s) to insert.
+                metadata (Optional[List[Any]]): The list of metadata associated with the vectors.
 
             Returns:
                 es2.Index: The index object after insertion. User has no need to care about returned index object.
@@ -109,6 +107,8 @@ class MCPServerApp:
                 vectors = vectors.tolist()
             elif isinstance(vectors, list) and all(isinstance(v, np.ndarray) for v in vectors):
                 vectors = [v.tolist() for v in vectors]
+            elif isinstance(vectors, list) and all(isinstance(v, float) for v in vectors):
+                vectors = [vectors]
             return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
     def run_http_service(self, host: str, port: int) -> None:
