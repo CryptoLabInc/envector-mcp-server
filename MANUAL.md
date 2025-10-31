@@ -58,6 +58,25 @@ python srcs/server.py --mode local
 
     ex. `VS Code`, `Claude`, etc.
      - Please follow decription of each module
+     - For example, (Claude Desktop)
+        ```json
+        {
+            "mcpServers": {
+                "enVectorMCP": {
+                "command": "/path/to/python",
+                "args": [
+                    "/path/to/envector-mcp-server/srcs/server.py",
+                    "--mode",
+                    "local", 
+                    "--envector-endpoint",
+                    "IP",
+                    "--envector-port",
+                    "50050"
+                ]
+                }
+            }
+        }
+        ```
 
 2. Use Python client (FastMCP Client)
 

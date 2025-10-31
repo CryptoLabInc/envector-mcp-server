@@ -139,8 +139,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--envector-eval-mode",
-        default=os.getenv("ENVECTOR_EVAL_MODE", "mm"),
-        help="enVector evaluation mode (e.g., 'mm', 'rmp').",
+        default=os.getenv("ENVECTOR_EVAL_MODE", "rmp"),
+        help="enVector evaluation mode (e.g., 'rmp', 'mm').",
     )
     args = parser.parse_args()
     run_mode = args.mode.lower()
