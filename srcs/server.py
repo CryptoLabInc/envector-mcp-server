@@ -16,6 +16,8 @@ Expected MCP Tool Return Format:
 
 import argparse
 from typing import Union, List, Dict, Any
+import es2  # pip install es2
+from es2.crypto.block import CipherBlock
 import numpy as np
 import os, sys, signal
 
@@ -63,7 +65,7 @@ class MCPServerApp:
         @self.mcp.tool(name="search", description="Search using enVector SDK")
         async def tool_search(
                 index_name: str,
-                query: Union[List[float], List[List[float]]],
+                query: Union[List[float], List[List[float]], np.ndarray, List[np.ndarray]],
                 topk: int
             ) -> Dict[str, Any]:
             """
@@ -83,6 +85,31 @@ class MCPServerApp:
             elif isinstance(query, list) and all(isinstance(q, np.ndarray) for q in query):
                 query = [q.tolist() for q in query]
             return self.adapter.call_search(index_name=index_name, query=query, topk=topk)
+
+        # ---------- MCP Tools: Insert ---------- #
+        @self.mcp.tool(name="insert", description="Insert vectors using enVector SDK")
+        async def tool_insert(
+                index_name: str,
+                vectors: Union[List[List[float]], List[np.ndarray], np.ndarray, List[CipherBlock]],
+                metadata: List[Any] = None
+            ) -> es2.Index:
+            """
+            MCP tool to perform insert using the enVector SDK adapter.
+            Call the adapter's call_insert method.
+
+            Args:
+                index_name (str): The name of the index to insert into.
+                vectors (Union[List[List[float]], List[np.ndarray], np.ndarray, List[CipherBlock]]): The list of vectors to insert.
+                metadata (List[Any], optional): The list of metadata associated with the vectors. Defaults to None.
+
+            Returns:
+                es2.Index: The index object after insertion. User has no need to care about returned index object.
+            """
+            if isinstance(vectors, np.ndarray):
+                vectors = vectors.tolist()
+            elif isinstance(vectors, list) and all(isinstance(v, np.ndarray) for v in vectors):
+                vectors = [v.tolist() for v in vectors]
+            return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
     def run_http_service(self, host: str, port: int) -> None:
         """
