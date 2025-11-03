@@ -5,7 +5,7 @@ import pytest
 
 from typing import Union, List, Any, Dict
 
-# Add path to srcs for imports
+# Add srcs directory to import path relative to project root
 ROOT = os.path.dirname(os.path.dirname(__file__))
 SRCS = os.path.join(ROOT, "srcs")
 if SRCS not in sys.path:
