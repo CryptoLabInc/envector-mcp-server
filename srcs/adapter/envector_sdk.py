@@ -7,8 +7,7 @@ import es2  # pip install es2
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
-KEY_PATH = SCRIPT_DIR / "keys"
-KEY_PATH.mkdir(exist_ok=True)
+KEY_PATH = SCRIPT_DIR.parent.parent / "keys" # Manage keys directory at project root
 
 class EnVectorSDKAdapter:
     """
