@@ -86,12 +86,12 @@ class EnVectorSDKAdapter:
             # Handle exceptions and return an appropriate error message
             return {"ok": False, "error": repr(e)}
 
-    def invoke_get_index_list(self):
+    def invoke_get_index_list(self) -> List[str]:
         """
         Invokes the enVector SDK's get_index_list functionality.
 
         Returns:
-            List: List of indexes from the enVector SDK.
+            List[str]: List of index names from the enVector SDK.
         """
         return es2.get_index_list()
 
@@ -113,7 +113,7 @@ class EnVectorSDKAdapter:
             # Handle exceptions and return an appropriate error message
             return {"ok": False, "error": repr(e)}
 
-    def invoke_get_index_info(self, index_name: str):
+    def invoke_get_index_info(self, index_name: str) -> Dict[str, Any]:
         """
         Invokes the enVector SDK's get_index_info functionality.
 
