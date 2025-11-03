@@ -8,8 +8,7 @@ from es2.crypto.block import CipherBlock
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
-KEY_PATH = SCRIPT_DIR / "keys"
-KEY_PATH.mkdir(exist_ok=True)
+KEY_PATH = SCRIPT_DIR.parent.parent / "keys" # Manage keys directory at project root
 
 class EnVectorSDKAdapter:
     """
