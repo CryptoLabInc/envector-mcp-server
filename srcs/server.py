@@ -139,7 +139,7 @@ class MCPServerApp:
         async def tool_insert(
                 index_name: str,
                 vectors: Union[List[float], List[List[float]]],
-                metadata: Optional[List[Any]] = None
+                metadata: List[Any] = None
             ) -> Dict[str, Any]:
             """
             MCP tool to perform insert using the enVector SDK adapter.
@@ -154,7 +154,7 @@ class MCPServerApp:
                 Dict[str, Any]: The insert results from the enVector SDK adapter.
             """
             if isinstance(vectors, np.ndarray):
-                vectors = vectors.tolist()
+                vectors = [vectors.tolist()]
             elif isinstance(vectors, list) and all(isinstance(v, np.ndarray) for v in vectors):
                 vectors = [v.tolist() for v in vectors]
             elif isinstance(vectors, list) and all(isinstance(v, float) for v in vectors):
