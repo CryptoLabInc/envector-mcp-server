@@ -12,6 +12,7 @@ if SRCS not in sys.path:
     sys.path.append(SRCS)
 
 from fastmcp import Client
+from fastmcp.exceptions import ToolError
 from server import MCPServerApp
 from adapter.envector_sdk import EnVectorSDKAdapter
 
@@ -24,6 +25,16 @@ def mcp_server():
     class FakeAdapter(EnVectorSDKAdapter):
         def __init__(self):
             pass  # Actual initialization not needed
+
+        # ----------- Mocked method: Get Index List ----------- #
+        def invoke_get_index_list(self) -> List[str]:
+            return ["index_a", "index_b"]
+
+        # ----------- Mocked method: Get Index Info ----------- #
+        def invoke_get_index_info(self, index_name: str) -> Dict[str, Any]:
+            if index_name not in ("index_a", "index_b"):
+                raise ValueError(f"Index '{index_name}' not found")
+            return {"index_name": index_name, "dim": 128, "row_count": 42}
 
         # ----------- Mocked method: Create Index ----------- #
         def invoke_create_index(self, index_name: str, dim: int, index_params: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -95,6 +106,70 @@ async def test_call_tool_create_index_invalid_args_type_error(mcp_server):
                     "index_params": "invalid_params"  # Should be a dict
                 }
             )
+
+
+# ----------- Get Index List Tool Tests ----------- #
+@pytest.mark.asyncio
+async def test_tools_list_contains_get_index_list(mcp_server):
+    async with Client(mcp_server) as client:
+        tools = await client.list_tools()
+        names = [t.name for t in tools]
+        assert "get_index_list" in names
+
+
+@pytest.mark.asyncio
+async def test_call_tool_get_index_list_happy_path(mcp_server):
+    async with Client(mcp_server) as client:
+        result = await client.call_tool("get_index_list", {})
+        data = getattr(result, "data", None) or getattr(result, "structured", None) \
+               or getattr(result, "structured_content", None)
+
+        assert data is not None, "No data returned from tool call"
+        assert data.get("ok") is True
+        payload = data.get("results")
+        assert payload == ["index_a", "index_b"]
+
+
+# ----------- Get Index Info Tool Tests ----------- #
+@pytest.mark.asyncio
+async def test_tools_list_contains_get_index_info(mcp_server):
+    async with Client(mcp_server) as client:
+        tools = await client.list_tools()
+        names = [t.name for t in tools]
+        assert "get_index_info" in names
+
+
+@pytest.mark.asyncio
+async def test_call_tool_get_index_info_happy_path(mcp_server):
+    async with Client(mcp_server) as client:
+        result = await client.call_tool(
+            "get_index_info",
+            {"index_name": "index_a"}
+        )
+        data = getattr(result, "data", None) or getattr(result, "structured", None) \
+               or getattr(result, "structured_content", None)
+
+        assert data is not None, "No data returned from tool call"
+        assert data.get("ok") is True
+        payload = data.get("results")
+        assert payload["index_name"] == "index_a"
+        assert payload["dim"] == 128
+        assert payload["row_count"] == 42
+
+
+@pytest.mark.asyncio
+async def test_call_tool_get_index_info_missing_index(mcp_server):
+    async with Client(mcp_server) as client:
+        result = await client.call_tool(
+            "get_index_info",
+            {"index_name": "unknown_index"}
+        )
+        data = getattr(result, "data", None) or getattr(result, "structured", None) \
+               or getattr(result, "structured_content", None)
+
+        assert data is not None, "No data returned from tool call"
+        assert data.get("ok") is False
+        assert "unknown_index" in data.get("error", "")
 
 
 # ----------- Insert Tool Tests ----------- #
