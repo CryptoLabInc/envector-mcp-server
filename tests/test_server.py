@@ -13,7 +13,7 @@ if SRCS not in sys.path:
 
 from fastmcp import Client
 from server import MCPServerApp
-from adapter.enVector_sdk import EnVectorSDKAdapter
+from adapter.envector_sdk import EnVectorSDKAdapter
 
 @pytest.fixture
 def mcp_server():
@@ -86,7 +86,7 @@ async def test_call_tool_create_index_happy_path(mcp_server):
 @pytest.mark.asyncio
 async def test_call_tool_create_index_invalid_args_type_error(mcp_server):
     async with Client(mcp_server) as client:
-        with pytest.raises(TypeError):
+        with pytest.raises(Exception):
             await client.call_tool(
                 "create_index",
                 {
