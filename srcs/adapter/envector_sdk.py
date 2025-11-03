@@ -29,14 +29,9 @@ class EnVectorSDKAdapter:
             endpoint (Optional[str]): The endpoint URL for the enVector SDK.
             port (Optional[int]): The port number for the enVector SDK.
         """
-        self.endpoint = endpoint
-        self.port = port
-        self.key_id = key_id
-        self.eval_mode = eval_mode
         if not key_path:
             key_path = str(KEY_PATH)
-        self.key_path = key_path
-        es2.init(host=self.endpoint, port=self.port, key_path=self.key_path, key_id=self.key_id, eval_mode=self.eval_mode, auto_key_setup=True)
+        es2.init(host=endpoint, port=port, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
 
     #---------------- CreateIndex ----------------#
 

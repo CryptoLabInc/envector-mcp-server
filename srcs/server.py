@@ -90,8 +90,8 @@ class MCPServerApp:
         @self.mcp.tool(
             name="insert",
             description=(
-                "Insert vectors using enVector SDK."
-                "There are 3 parameters to set. `index_name`, `vectors`, and `metadata`."
+                "Insert vectors using enVector SDK. "
+                "There are 3 parameters to set. `index_name`, `vectors`, and `metadata`. "
                 "Field `metadata` is for attached information for each vector."
             )
         )
@@ -124,7 +124,7 @@ class MCPServerApp:
         @self.mcp.tool(
             name="search",
             description=(
-                "Search using enVector SDK."
+                "Search using enVector SDK. "
                 "There are 3 parameters to set. `index_name`, `query`, and `topk`."
             )
         )
