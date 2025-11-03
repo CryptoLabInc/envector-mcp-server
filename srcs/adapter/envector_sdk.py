@@ -20,6 +20,7 @@ class EnVectorSDKAdapter:
             endpoint: str,
             port: int,
             key_id: str,
+            key_path: str,
             eval_mode: str
         ):
         """
@@ -31,7 +32,9 @@ class EnVectorSDKAdapter:
         """
         self.endpoint = endpoint
         self.port = port
-        es2.init(host=self.endpoint, port=self.port, key_path=str(KEY_PATH), key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
+        if not key_path:
+            key_path = str(KEY_PATH)
+        es2.init(host=self.endpoint, port=self.port, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
 
     #------------------- Insert ------------------#
 
