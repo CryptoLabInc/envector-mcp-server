@@ -148,13 +148,18 @@ if __name__ == "__main__":
         help="HTTP bind port.",
     )
     parser.add_argument(
+        "--address",
+        default=os.getenv("MCP_SERVER_ADDRESS", None),
+        help="HTTP bind address (host:port) of MCP Server. Overrides --host and --port if provided.",
+    )
+    parser.add_argument(
         "--server-name",
         default=os.getenv("MCP_SERVER_NAME", "envector_mcp_server"),
         help="Advertised MCP server name.",
     )
     parser.add_argument(
-        "--envector-endpoint",
-        default=os.getenv("ENVECTOR_ENDPOINT", "127.0.0.1"),
+        "--envector-host",
+        default=os.getenv("ENVECTOR_HOST", "127.0.0.1"),
         help="enVector endpoint hostname or IP.",
     )
     parser.add_argument(
@@ -162,6 +167,11 @@ if __name__ == "__main__":
         type=int,
         default=int(os.getenv("ENVECTOR_PORT", 50050)),
         help="enVector endpoint port.",
+    )
+    parser.add_argument(
+        "--envector-address",
+        default=os.getenv("ENVECTOR_ADDRESS", None),
+        help="enVector endpoint address (host:port). Overrides --envector-host and --envector-port if provided.",
     )
     parser.add_argument(
         "--envector-key-id",
@@ -186,10 +196,16 @@ if __name__ == "__main__":
     Environment Variables for MCP Server Configuration:
     - MCP_SERVER_HOST: The host address for the MCP server (default: "127.0.0.1")
     - MCP_SERVER_PORT: The port number for the MCP server (default: 8000)
+    - MCP_SERVER_ADDRESS: The address (host:port) for the MCP server (overrides --host and --port if provided)
     - MCP_SERVER_NAME: The name of the MCP server (default: "envector_mcp_server")
     """
-    MCP_HOST = args.host
-    MCP_PORT = args.port
+    if args.address:
+        mcp_address = args.address.split(":")
+        MCP_HOST = mcp_address[0]
+        MCP_PORT = int(mcp_address[1]) if len(mcp_address) > 1 else 8000
+    else:
+        MCP_HOST = args.host
+        MCP_PORT = args.port
     MCP_SERVER_NAME = args.server_name
 
     # Environment Variables for enVector SDK Configuration
@@ -200,14 +216,19 @@ if __name__ == "__main__":
     - ENVECTOR_KEY_ID: The key ID for the `enVector` SDK (default: "mcp_key")
     - ENVECTOR_EVAL_MODE: The evaluation mode of the `enVector` ["rmp", "mm"] (default: "rmp")
     """
-    ENVECTOR_ENDPOINT = args.envector_endpoint
-    ENVECTOR_PORT = args.envector_port
+    if args.envector_address:
+        envector_address = args.envector_address.split(":")
+        ENVECTOR_HOST = envector_address[0]
+        ENVECTOR_PORT = int(envector_address[1]) if len(envector_address) > 1 else 50050
+    else:
+        ENVECTOR_HOST = args.envector_host
+        ENVECTOR_PORT = args.envector_port
     ENVECTOR_KEY_ID = args.envector_key_id
     ENVECTOR_KEY_PATH = args.envector_key_path
     ENVECTOR_EVAL_MODE = args.envector_eval_mode
 
     adapter = EnVectorSDKAdapter(
-        endpoint=ENVECTOR_ENDPOINT,
+        endpoint=ENVECTOR_HOST,
         port=ENVECTOR_PORT,
         key_id=ENVECTOR_KEY_ID,
         key_path=ENVECTOR_KEY_PATH,
