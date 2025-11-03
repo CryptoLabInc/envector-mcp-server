@@ -39,7 +39,7 @@ python srcs/server.py --mode remote \
     --host 0.0.0.0 \
     --port 8000 \
     --server-name envector_mcp_server \
-    --envector-endpoint 127.0.0.1 \
+    --envector-host 127.0.0.1 \
     --envector-port 50050 \
     --envector-key-id mcp_key \
     --envector-eval-mode mm
@@ -68,7 +68,7 @@ python srcs/server.py --mode local
                     "/path/to/envector-mcp-server/srcs/server.py",
                     "--mode",
                     "local",
-                    "--envector-endpoint",
+                    "--envector-host",
                     "IP",
                     "--envector-port",
                     "50050"

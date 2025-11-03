@@ -6,7 +6,7 @@ import pytest
 from typing import Union, List
 import numpy as np
 
-# 프로젝트 루트 기준으로 srcs 경로를 import 경로에 추가
+# Add srcs directory to import path relative to project root
 ROOT = os.path.dirname(os.path.dirname(__file__))
 SRCS = os.path.join(ROOT, "srcs")
 if SRCS not in sys.path:

@@ -25,7 +25,7 @@ if CURRENT_DIR not in sys.path:
     sys.path.append(CURRENT_DIR)
 
 from fastmcp import FastMCP  # pip install fastmcp
-from srcs.adapter.envector_sdk import EnVectorSDKAdapter
+from adapter.envector_sdk import EnVectorSDKAdapter
 
 # # For Health Check (Starlette Imports -> Included in FastMCP as dependency)
 # from starlette.requests import Request
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     )
     app = MCPServerApp(adapter=adapter, mcp_server_name=MCP_SERVER_NAME)
     def _handle_shutdown(signum, frame):
-        # parameter `frame` is not used, but required to get stack frame info from signal module
+        # parameter `frame` is not used, but required by signal handler signature
         sig_name = signal.Signals(signum).name if hasattr(signal, "Signals") else str(signum)
         raise SystemExit(0)
     for sig in (signal.SIGINT, getattr(signal, "SIGTERM", None)):
