@@ -25,7 +25,7 @@ if CURRENT_DIR not in sys.path:
     sys.path.append(CURRENT_DIR)
 
 from fastmcp import FastMCP  # pip install fastmcp
-from adapter.enVector_sdk import EnVectorSDKAdapter
+from srcs.adapter.envector_sdk import EnVectorSDKAdapter
 
 # # For Health Check (Starlette Imports -> Included in FastMCP as dependency)
 # from starlette.requests import Request
@@ -109,7 +109,11 @@ if __name__ == "__main__":
         default=os.getenv("MCP_SERVER_MODE", "remote"),
         help="Execution mode: 'local' uses stdio transport, 'remote' exposes HTTP transport.",
     )
-    parser.add_argument("--host", default=os.getenv("MCP_SERVER_HOST", "127.0.0.1"), help="HTTP bind host.")
+    parser.add_argument(
+        "--host",
+        default=os.getenv("MCP_SERVER_HOST", "127.0.0.1"),
+        help="HTTP bind host."
+    )
     parser.add_argument(
         "--port",
         type=int,
@@ -136,6 +140,11 @@ if __name__ == "__main__":
         "--envector-key-id",
         default=os.getenv("ENVECTOR_KEY_ID", "mcp_key"),
         help="enVector key identifier.",
+    )
+    parser.add_argument(
+        "--envector-key-path",
+        default=os.getenv("ENVECTOR_KEY_PATH", None),
+        help="Path to the enVector key file.",
     )
     parser.add_argument(
         "--envector-eval-mode",
@@ -167,12 +176,14 @@ if __name__ == "__main__":
     ENVECTOR_ENDPOINT = args.envector_endpoint
     ENVECTOR_PORT = args.envector_port
     ENVECTOR_KEY_ID = args.envector_key_id
+    ENVECTOR_KEY_PATH = args.envector_key_path
     ENVECTOR_EVAL_MODE = args.envector_eval_mode
 
     adapter = EnVectorSDKAdapter(
         endpoint=ENVECTOR_ENDPOINT,
         port=ENVECTOR_PORT,
         key_id=ENVECTOR_KEY_ID,
+        key_path=ENVECTOR_KEY_PATH,
         eval_mode=ENVECTOR_EVAL_MODE
     )
     app = MCPServerApp(adapter=adapter, mcp_server_name=MCP_SERVER_NAME)
