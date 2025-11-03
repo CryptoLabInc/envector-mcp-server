@@ -3,7 +3,7 @@ import os
 import sys
 import pytest
 
-from typing import Union, List, Any, Dict
+from typing import Union, List, Any, Dict, Optional
 
 # Add srcs directory to import path relative to project root
 ROOT = os.path.dirname(os.path.dirname(__file__))
@@ -30,7 +30,7 @@ def mcp_server():
                 self,
                 index_name: str,
                 vectors: List[List[float]],
-                metadata: List[Any] = None
+                metadata: Optional[List[Any]] = None
             ) -> Dict[str, Any]:
             return {"index_name": index_name, "vectors": vectors, "metadata": metadata}
 

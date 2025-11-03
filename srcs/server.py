@@ -59,31 +59,6 @@ class MCPServerApp:
         #     """
         #     return PlainTextResponse("OK", status_code=200)
 
-        # ---------- MCP Tools: Search ---------- #
-        @self.mcp.tool(name="search", description="Search using enVector SDK")
-        async def tool_search(
-                index_name: str,
-                query: Union[List[float], List[List[float]]],
-                topk: int
-            ) -> Dict[str, Any]:
-            """
-            MCP tool to perform search using the enVector SDK adapter.
-            Call the adapter's call_search method.
-
-            Args:
-                index_name (str): The name of the index to search.
-                query (Union[List[float], List[List[float]]]): The search query.
-                topk (int): The number of top results to return.
-
-            Returns:
-                Dict[str, Any]: The search results from the enVector SDK adapter.
-            """
-            if isinstance(query, np.ndarray):
-                query = query.tolist()
-            elif isinstance(query, list) and all(isinstance(q, np.ndarray) for q in query):
-                query = [q.tolist() for q in query]
-            return self.adapter.call_search(index_name=index_name, query=query, topk=topk)
-
         # ---------- MCP Tools: Insert ---------- #
         @self.mcp.tool(name="insert", description="Insert vectors using enVector SDK")
         async def tool_insert(
@@ -110,6 +85,31 @@ class MCPServerApp:
             elif isinstance(vectors, list) and all(isinstance(v, float) for v in vectors):
                 vectors = [vectors]
             return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
+
+        # ---------- MCP Tools: Search ---------- #
+        @self.mcp.tool(name="search", description="Search using enVector SDK")
+        async def tool_search(
+                index_name: str,
+                query: Union[List[float], List[List[float]]],
+                topk: int
+            ) -> Dict[str, Any]:
+            """
+            MCP tool to perform search using the enVector SDK adapter.
+            Call the adapter's call_search method.
+
+            Args:
+                index_name (str): The name of the index to search.
+                query (Union[List[float], List[List[float]]]): The search query.
+                topk (int): The number of top results to return.
+
+            Returns:
+                Dict[str, Any]: The search results from the enVector SDK adapter.
+            """
+            if isinstance(query, np.ndarray):
+                query = query.tolist()
+            elif isinstance(query, list) and all(isinstance(q, np.ndarray) for q in query):
+                query = [q.tolist() for q in query]
+            return self.adapter.call_search(index_name=index_name, query=query, topk=topk)
 
     def run_http_service(self, host: str, port: int) -> None:
         """

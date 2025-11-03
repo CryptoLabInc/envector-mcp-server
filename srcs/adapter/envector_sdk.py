@@ -38,12 +38,12 @@ class EnVectorSDKAdapter:
 
     #------------------- Insert ------------------#
 
-    def call_insert(self, index_name: str, vectors: Union[List[List[float]], List[CipherBlock]], metadata: List[Any] = None):
+    def call_insert(self, index_name: str, vectors: List[List[float]], metadata: List[Any] = None):
         """
         Calls the enVector SDK to perform an insert operation.
 
         Args:
-            vectors (Union[List[List[float]], List[CipherBlock]]): The list of vectors to insert.
+            vectors (List[List[float]]): The list of vectors to insert.
             metadata (List[Any], optional): The list of metadata associated with the vectors. Defaults to None.
 
         Returns:
