@@ -59,8 +59,42 @@ class MCPServerApp:
         #     """
         #     return PlainTextResponse("OK", status_code=200)
 
+        # ---------- MCP Tools: Create Index ---------- #
+        @self.mcp.tool(
+            name="create_index",
+            description=(
+                "Create an index. There are 3 parameters to set. `index_name`, `dim`, and `index_params`. "
+                "Set index_params accordingly: {'index_type': 'FLAT'} for a flat index or {'index_type': 'IVF_FLAT', 'nlist': <int>, 'default_nprobe': <int>} for IVF."
+            )
+        )
+        async def tool_create_index(
+                index_name: str,
+                dim: int,
+                index_params: Dict[str, Any]
+            ) -> Dict[str, Any]:
+            """
+            MCP tool to create an index using the enVector SDK adapter.
+            Call the adapter's call_create_index method.
+
+            Args:
+                index_name (str): The name of the index to create.
+                dim (int): The dimensionality of the index.
+                index_params (Dict[str, Any]): The parameters for the index.
+
+            Returns:
+                Dict[str, Any]: The create index results from the enVector SDK adapter.
+            """
+            return self.adapter.call_create_index(index_name=index_name, dim=dim, index_params=index_params)
+
         # ---------- MCP Tools: Insert ---------- #
-        @self.mcp.tool(name="insert", description="Insert vectors using enVector SDK")
+        @self.mcp.tool(
+            name="insert",
+            description=(
+                "Insert vectors using enVector SDK."
+                "There are 3 parameters to set. `index_name`, `vectors`, and `metadata`."
+                "Field `metadata` is for attached information for each vector."
+            )
+        )
         async def tool_insert(
                 index_name: str,
                 vectors: Union[List[float], List[List[float]]],
@@ -87,7 +121,13 @@ class MCPServerApp:
             return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
         # ---------- MCP Tools: Search ---------- #
-        @self.mcp.tool(name="search", description="Search using enVector SDK")
+        @self.mcp.tool(
+            name="search",
+            description=(
+                "Search using enVector SDK."
+                "There are 3 parameters to set. `index_name`, `query`, and `topk`."
+            )
+        )
         async def tool_search(
                 index_name: str,
                 query: Union[List[float], List[List[float]]],

@@ -31,9 +31,50 @@ class EnVectorSDKAdapter:
         """
         self.endpoint = endpoint
         self.port = port
+        self.key_id = key_id
+        self.eval_mode = eval_mode
         if not key_path:
             key_path = str(KEY_PATH)
-        es2.init(host=self.endpoint, port=self.port, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
+        self.key_path = key_path
+        es2.init(host=self.endpoint, port=self.port, key_path=self.key_path, key_id=self.key_id, eval_mode=self.eval_mode, auto_key_setup=True)
+
+    #---------------- CreateIndex ----------------#
+
+    def call_create_index(self, index_name, dim, index_params) -> Dict[str, Any]:
+        """
+        Create a new empty index.
+
+        Args
+        ----------
+            index_name (str): The name of the index.
+            dim (int): The dimensionality of the index.
+            index_params (dict, optional): The parameters for the index.
+
+        Returns
+        -------
+            Dict[str, Any]: If succeed, converted format of the create index results. Otherwise, error message.
+        """
+        try:
+            results = self.invoke_create_index(index_name=index_name, dim=dim, index_params=index_params)
+            return self._to_json_available({"ok": True, "results": results})
+        except Exception as e:
+            # Handle exceptions and return an appropriate error message
+            return {"ok": False, "error": repr(e)}
+
+    def invoke_create_index(self, index_name: str, dim: int, index_params: Dict[str, Any] = None):
+        """
+        Invokes the enVector SDK's create_index functionality.
+
+        Args:
+            index_name (str): The name of the index.
+            dim (int): The dimensionality of the index.
+            index_params (dict, optional): The parameters for the index.
+
+        Returns:
+            Any: Raw create index results from the enVector SDK.
+        """
+        # Return the created index instance
+        return es2.create_index(index_name=index_name, dim=dim, index_params=index_params)
 
     #------------------- Insert ------------------#
 
