@@ -99,7 +99,7 @@ class MCPServerApp:
         async def tool_insert(
                 index_name: str,
                 vectors: Union[List[float], List[List[float]]],
-                metadata: Optional[Union[List[str], str]] = None
+                metadata: Union[Any, List[Any]] = None
             ) -> Dict[str, Any]:
             """
             MCP tool to perform insert using the enVector SDK adapter.
@@ -108,7 +108,7 @@ class MCPServerApp:
             Args:
                 index_name (str): The name of the index to insert into.
                 vectors (Union[List[float], List[List[float]]]): The vector(s) to insert.
-                metadata (Optional[List[Any]]): The list of metadata associated with the vectors.
+                metadata (Union[Any, List[Any]]): The list of metadata associated with the vectors.
 
             Returns:
                 Dict[str, Any]: The insert results from the enVector SDK adapter.
@@ -125,8 +125,8 @@ class MCPServerApp:
                 try:
                     vectors = json.loads(vectors)
                 except json.JSONDecodeError:
-                    # If parsing fails, use the original string
-                    pass
+                    # If parsing fails, raise an error
+                    raise ValueError("Invalid format has used or failed to parse JSON for `vectors` parameter. Caused by: " + vectors)
 
             # Instance normalization for metadata
             if metadata is not None and not isinstance(metadata, list):
@@ -135,8 +135,10 @@ class MCPServerApp:
                     try:
                         metadata = json.loads(metadata)
                     except json.JSONDecodeError:
+                        # If parsing fails, wrap the string in a list
                         metadata = [metadata]
                 else:
+                    # If `metadata` is not a list or string, wrap it in a list
                     metadata = [metadata]
             return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
