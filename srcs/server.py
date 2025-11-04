@@ -18,6 +18,7 @@ import argparse
 from typing import Union, List, Dict, Any, Optional
 import numpy as np
 import os, sys, signal
+import json
 
 # Ensure current directory is in sys.path for module imports
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -64,7 +65,7 @@ class MCPServerApp:
         async def tool_insert(
                 index_name: str,
                 vectors: Union[List[float], List[List[float]]],
-                metadata: Optional[List[Any]] = None
+                metadata: Optional[Union[List[str], str]] = None
             ) -> Dict[str, Any]:
             """
             MCP tool to perform insert using the enVector SDK adapter.
@@ -79,11 +80,26 @@ class MCPServerApp:
                 Dict[str, Any]: The insert results from the enVector SDK adapter.
             """
             if isinstance(vectors, np.ndarray):
-                vectors = vectors.tolist()
+                vectors = [vectors.tolist()]
             elif isinstance(vectors, list) and all(isinstance(v, np.ndarray) for v in vectors):
                 vectors = [v.tolist() for v in vectors]
             elif isinstance(vectors, list) and all(isinstance(v, float) for v in vectors):
                 vectors = [vectors]
+            elif isinstance(vectors, str):
+                # vectors가 문자열로 전달된 경우 JSON 파싱
+                try:
+                    vectors = json.loads(vectors)
+                except json.JSONDecodeError:
+                    # 파싱 실패 시 원본 사용
+                    pass
+            
+            if isinstance(metadata, str):
+                # metadata가 문자열로 전달된 경우 JSON 파싱
+                try:
+                    metadata = json.loads(metadata)
+                except json.JSONDecodeError:
+                    pass
+
             return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
         # ---------- MCP Tools: Search ---------- #
