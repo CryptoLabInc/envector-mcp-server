@@ -79,6 +79,7 @@ class MCPServerApp:
             Returns:
                 Dict[str, Any]: The insert results from the enVector SDK adapter.
             """
+            # Instance normalization for vectors
             if isinstance(vectors, np.ndarray):
                 vectors = [vectors.tolist()]
             elif isinstance(vectors, list) and all(isinstance(v, np.ndarray) for v in vectors):
@@ -100,6 +101,11 @@ class MCPServerApp:
                 except json.JSONDecodeError:
                     pass
 
+
+            # Instance normalization for metadata
+            if metadata is not None:
+                if not isinstance(metadata, list):
+                    metadata = [metadata]
             return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
         # ---------- MCP Tools: Search ---------- #

@@ -55,7 +55,7 @@ class EnVectorSDKAdapter:
             # Handle exceptions and return an appropriate error message
             return {"ok": False, "error": repr(e)}
 
-    def invoke_insert(self, index_name: str, vectors: Union[List[List[float]], List[CipherBlock]], metadata: List[Any] = None):
+    def invoke_insert(self, index_name: str, vectors: List[List[float]], metadata: List[Any] = None):
         """
         Invokes the enVector SDK's insert functionality.
 

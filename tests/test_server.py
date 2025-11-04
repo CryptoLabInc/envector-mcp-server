@@ -13,7 +13,7 @@ if SRCS not in sys.path:
 
 from fastmcp import Client
 from server import MCPServerApp
-from adapter.enVector_sdk import EnVectorSDKAdapter
+from adapter.envector_sdk import EnVectorSDKAdapter
 
 @pytest.fixture
 def mcp_server():
@@ -30,7 +30,7 @@ def mcp_server():
                 self,
                 index_name: str,
                 vectors: List[List[float]],
-                metadata: Optional[List[Any]] = None
+                metadata: Union[Any, List[Any]] = None
             ) -> Dict[str, Any]:
             return {"index_name": index_name, "vectors": vectors, "metadata": metadata}
 
