@@ -63,8 +63,8 @@ class MCPServerApp:
         @self.mcp.tool(name="insert", description="Insert vectors using enVector SDK")
         async def tool_insert(
                 index_name: str,
-                vectors: Union[List[float], List[List[float]]],
-                metadata: List[Any] = None
+                vectors: Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]],
+                metadata: Union[Any, List[Any]] = None
             ) -> Dict[str, Any]:
             """
             MCP tool to perform insert using the enVector SDK adapter.
@@ -78,12 +78,18 @@ class MCPServerApp:
             Returns:
                 Dict[str, Any]: The insert results from the enVector SDK adapter.
             """
+            # Instance normalization for vectors
             if isinstance(vectors, np.ndarray):
                 vectors = [vectors.tolist()]
             elif isinstance(vectors, list) and all(isinstance(v, np.ndarray) for v in vectors):
                 vectors = [v.tolist() for v in vectors]
             elif isinstance(vectors, list) and all(isinstance(v, float) for v in vectors):
                 vectors = [vectors]
+
+            # Instance normalization for metadata
+            if metadata is not None:
+                if not isinstance(metadata, list):
+                    metadata = [metadata]
             return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
         # ---------- MCP Tools: Search ---------- #
