@@ -87,24 +87,22 @@ class MCPServerApp:
             elif isinstance(vectors, list) and all(isinstance(v, float) for v in vectors):
                 vectors = [vectors]
             elif isinstance(vectors, str):
-                # vectors가 문자열로 전달된 경우 JSON 파싱
+                # If `vectors` is passed as a string, try to parse it as JSON
                 try:
                     vectors = json.loads(vectors)
                 except json.JSONDecodeError:
-                    # 파싱 실패 시 원본 사용
+                    # If parsing fails, use the original string
                     pass
-            
-            if isinstance(metadata, str):
-                # metadata가 문자열로 전달된 경우 JSON 파싱
-                try:
-                    metadata = json.loads(metadata)
-                except json.JSONDecodeError:
-                    pass
-
 
             # Instance normalization for metadata
-            if metadata is not None:
-                if not isinstance(metadata, list):
+            if metadata is not None and not isinstance(metadata, list):
+                if isinstance(metadata, str):
+                    # If `metadata` is passed as a string, try to parse it as JSON
+                    try:
+                        metadata = json.loads(metadata)
+                    except json.JSONDecodeError:
+                        metadata = [metadata]
+                else:
                     metadata = [metadata]
             return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
