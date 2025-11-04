@@ -33,7 +33,7 @@ class EnVectorSDKAdapter:
             key_path = str(KEY_PATH)
         es2.init(host=endpoint, port=port, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
 
-    #---------------- CreateIndex ----------------#
+    #------------------- Create Index ------------------#
 
     def call_create_index(self, index_name, dim, index_params) -> Dict[str, Any]:
         """

@@ -75,7 +75,7 @@ class MCPServerApp:
             ) -> Dict[str, Any]:
             """
             MCP tool to create an index using the enVector SDK adapter.
-            Call the adapter's call_create_index method.
+            Calls self.adapter.call_create_index(...).
 
             Args:
                 index_name (str): The name of the index to create.
