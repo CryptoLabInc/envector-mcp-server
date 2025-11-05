@@ -93,7 +93,9 @@ class MCPServerApp:
             description=(
                 "Insert vectors using enVector SDK. "
                 "There are 3 parameters to set. `index_name`, `vectors`, and `metadata`. "
-                "Field `vectors` allows one or more vectors, but [batch_size] vectors in once would be more efficient."
+                "Allowing one or more vectors, but insert 'batch_size' vectors in once would be more efficient. "
+                "If eval_mode is 'rmp', using batch_size = 128 is recommended. "
+                "If eval_mode is 'mm', using batch_size = 4096 is recommended. "
                 "Field `metadata` is for attached information for each vector."
             )
         )
