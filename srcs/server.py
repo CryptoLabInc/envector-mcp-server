@@ -61,7 +61,7 @@ class MCPServerApp:
         #     return PlainTextResponse("OK", status_code=200)
 
         # ---------- MCP Tools: Insert ---------- #
-        @self.mcp.tool(name="insert", description="Insert vectors using enVector SDK")
+        @self.mcp.tool(name="insert", description="Insert vectors and metadata using enVector SDK. Allowing one or more vectors, but [batch_size] vectors in once would be more efficient.")
         async def tool_insert(
                 index_name: str,
                 vectors: Union[List[float], List[List[float]]],
