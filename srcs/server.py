@@ -61,7 +61,13 @@ class MCPServerApp:
         #     return PlainTextResponse("OK", status_code=200)
 
         # ---------- MCP Tools: Insert ---------- #
-        @self.mcp.tool(name="insert", description="Insert vectors and metadata using enVector SDK. Allowing one or more vectors, but [batch_size] vectors in once would be more efficient.")
+        @self.mcp.tool(
+            name="insert",
+            description="Insert vectors and metadata using enVector SDK. "
+                       "Allowing one or more vectors, but insert 'batch_size' vectors in once would be more efficient."
+                       "If eval_mode is 'rmp', using batch_size = 128 is recommended. "
+                       "If eval_mode is 'mm', using batch_size = 4096 is recommended. "
+        )
         async def tool_insert(
                 index_name: str,
                 vectors: Union[List[float], List[List[float]]],
