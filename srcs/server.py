@@ -93,6 +93,7 @@ class MCPServerApp:
             description=(
                 "Insert vectors using enVector SDK. "
                 "There are 3 parameters to set. `index_name`, `vectors`, and `metadata`. "
+                "Field `vectors` allows one or more vectors, but [batch_size] vectors in once would be more efficient."
                 "Field `metadata` is for attached information for each vector."
             )
         )
