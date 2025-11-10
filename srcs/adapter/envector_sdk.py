@@ -76,6 +76,60 @@ class EnVectorSDKAdapter:
         else:
             return es2.create_index(index_name=index_name, dim=dim, index_params=index_params, query_encryption="plain")
 
+    #--------------- Get Index List --------------#
+    def call_get_index_list(self) -> Dict[str, Any]:
+        """
+        Calls the enVector SDK to get the list of indexes.
+
+        Returns:
+            Dict[str, Any]: If succeed, converted format of the index list. Otherwise, error message.
+        """
+        try:
+            results = self.invoke_get_index_list()
+            return self._to_json_available({"ok": True, "results": results})
+        except Exception as e:
+            # Handle exceptions and return an appropriate error message
+            return {"ok": False, "error": repr(e)}
+
+    def invoke_get_index_list(self) -> List[str]:
+        """
+        Invokes the enVector SDK's get_index_list functionality.
+
+        Returns:
+            List[str]: List of index names from the enVector SDK.
+        """
+        return es2.get_index_list()
+
+    #--------------- Get Index Info --------------#
+    def call_get_index_info(self, index_name: str) -> Dict[str, Any]:
+        """
+        Calls the enVector SDK to get the information of a specific index.
+
+        Args:
+            index_name (str): The name of the index.
+
+        Returns:
+            Dict[str, Any]: If succeed, converted format of the index info. Otherwise, error message.
+        """
+        try:
+            results = self.invoke_get_index_info(index_name=index_name)
+            return self._to_json_available({"ok": True, "results": results})
+        except Exception as e:
+            # Handle exceptions and return an appropriate error message
+            return {"ok": False, "error": repr(e)}
+
+    def invoke_get_index_info(self, index_name: str) -> Dict[str, Any]:
+        """
+        Invokes the enVector SDK's get_index_info functionality.
+
+        Args:
+            index_name (str): The name of the index.
+
+        Returns:
+            Dict[str, Any]: Index information from the enVector SDK.
+        """
+        return es2.get_index_info(index_name=index_name)
+
     #------------------- Insert ------------------#
 
     def call_insert(self, index_name: str, vectors: List[List[float]], metadata: List[Any] = None):

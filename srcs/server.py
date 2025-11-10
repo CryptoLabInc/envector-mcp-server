@@ -87,6 +87,47 @@ class MCPServerApp:
             """
             return self.adapter.call_create_index(index_name=index_name, dim=dim, index_params=index_params)
 
+        # ---------- MCP Tools: Get Index List ---------- #
+        @self.mcp.tool(
+            name="get_index_list",
+            description=(
+                "Get the list of indexes from the enVector SDK. "
+                "No parameters are required. "
+                "Returns the list of existing indexes."
+            )
+        )
+        async def tool_get_index_list() -> Dict[str, Any]:
+            """
+            MCP tool to get the list of indexes using the enVector SDK adapter.
+            Call the adapter's call_get_index_list method.
+
+            Returns:
+                Dict[str, Any]: The index list from the enVector SDK adapter.
+            """
+            return self.adapter.call_get_index_list()
+
+        # ---------- MCP Tools: Get Index Info ---------- #
+        @self.mcp.tool(
+            name="get_index_info",
+            description=(
+                "Get information about a specific index from the enVector SDK. "
+                "One parameter is required: `index_name`. "
+                "Returns information about the specified index."
+            )
+        )
+        async def tool_get_index_info(index_name: str) -> Dict[str, Any]:
+            """
+            MCP tool to get information about a specific index using the enVector SDK adapter.
+            Call the adapter's call_get_index_info method.
+
+            Args:
+                index_name (str): The name of the index to retrieve information for.
+
+            Returns:
+                Dict[str, Any]: The index information from the enVector SDK adapter.
+            """
+            return self.adapter.call_get_index_info(index_name=index_name)
+
         # ---------- MCP Tools: Insert ---------- #
         @self.mcp.tool(
             name="insert",
