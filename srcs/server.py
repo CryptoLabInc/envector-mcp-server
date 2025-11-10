@@ -238,9 +238,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the enVector MCP server.")
     parser.add_argument(
         "--mode",
-        choices=("local", "remote"),
-        default=os.getenv("MCP_SERVER_MODE", "remote"),
-        help="Execution mode: 'local' uses stdio transport, 'remote' exposes HTTP transport.",
+        choices=("stdio", "http"),
+        default=os.getenv("MCP_SERVER_MODE", "http"),
+        help="Execution mode: 'stdio' uses stdio transport, 'http' exposes HTTP transport.",
     )
     parser.add_argument(
         "--host",
@@ -360,7 +360,9 @@ if __name__ == "__main__":
     for sig in (signal.SIGINT, getattr(signal, "SIGTERM", None)):
         if sig is not None:
             signal.signal(sig, _handle_shutdown)
-    if run_mode == "local":
+    if run_mode == "stdio":
         app.run_stdio_service()
-    else:
+    elif run_mode == "http":
         app.run_http_service(host=MCP_HOST, port=MCP_PORT)
+    else:
+        raise ValueError(f"Unsupported run mode: {run_mode}")
