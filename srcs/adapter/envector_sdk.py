@@ -20,7 +20,8 @@ class EnVectorSDKAdapter:
             port: int,
             key_id: str,
             key_path: str,
-            eval_mode: str
+            eval_mode: str,
+            query_encryption: bool
         ):
         """
         Initializes the EnVectorSDKAdapter with an optional endpoint.
@@ -29,11 +30,105 @@ class EnVectorSDKAdapter:
             endpoint (Optional[str]): The endpoint URL for the enVector SDK.
             port (Optional[int]): The port number for the enVector SDK.
         """
-        self.endpoint = endpoint
-        self.port = port
         if not key_path:
             key_path = str(KEY_PATH)
-        es2.init(host=self.endpoint, port=self.port, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
+        self.query_encryption = query_encryption
+        es2.init(host=endpoint, port=port, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
+
+    #------------------- Create Index ------------------#
+
+    def call_create_index(self, index_name, dim, index_params) -> Dict[str, Any]:
+        """
+        Create a new empty index.
+
+        Args
+        ----------
+            index_name (str): The name of the index.
+            dim (int): The dimensionality of the index.
+            index_params (dict, optional): The parameters for the index.
+
+        Returns
+        -------
+            Dict[str, Any]: If succeed, converted format of the create index results. Otherwise, error message.
+        """
+        try:
+            results = self.invoke_create_index(index_name=index_name, dim=dim, index_params=index_params)
+            return self._to_json_available({"ok": True, "results": results})
+        except Exception as e:
+            # Handle exceptions and return an appropriate error message
+            return {"ok": False, "error": repr(e)}
+
+    def invoke_create_index(self, index_name: str, dim: int, index_params: Dict[str, Any] = None):
+        """
+        Invokes the enVector SDK's create_index functionality.
+
+        Args:
+            index_name (str): The name of the index.
+            dim (int): The dimensionality of the index.
+            index_params (dict, optional): The parameters for the index.
+
+        Returns:
+            Any: Raw create index results from the enVector SDK.
+        """
+        # Return the created index instance
+        if self.query_encryption:
+            return es2.create_index(index_name=index_name, dim=dim, index_params=index_params, query_encryption="cipher")
+        else:
+            return es2.create_index(index_name=index_name, dim=dim, index_params=index_params, query_encryption="plain")
+
+    #--------------- Get Index List --------------#
+    def call_get_index_list(self) -> Dict[str, Any]:
+        """
+        Calls the enVector SDK to get the list of indexes.
+
+        Returns:
+            Dict[str, Any]: If succeed, converted format of the index list. Otherwise, error message.
+        """
+        try:
+            results = self.invoke_get_index_list()
+            return self._to_json_available({"ok": True, "results": results})
+        except Exception as e:
+            # Handle exceptions and return an appropriate error message
+            return {"ok": False, "error": repr(e)}
+
+    def invoke_get_index_list(self) -> List[str]:
+        """
+        Invokes the enVector SDK's get_index_list functionality.
+
+        Returns:
+            List[str]: List of index names from the enVector SDK.
+        """
+        return es2.get_index_list()
+
+    #--------------- Get Index Info --------------#
+    def call_get_index_info(self, index_name: str) -> Dict[str, Any]:
+        """
+        Calls the enVector SDK to get the information of a specific index.
+
+        Args:
+            index_name (str): The name of the index.
+
+        Returns:
+            Dict[str, Any]: If succeed, converted format of the index info. Otherwise, error message.
+        """
+        try:
+            results = self.invoke_get_index_info(index_name=index_name)
+            return self._to_json_available({"ok": True, "results": results})
+        except Exception as e:
+            # Handle exceptions and return an appropriate error message
+            return {"ok": False, "error": repr(e)}
+
+    def invoke_get_index_info(self, index_name: str) -> Dict[str, Any]:
+        """
+        Invokes the enVector SDK's get_index_info functionality.
+
+        Args:
+            index_name (str): The name of the index.
+
+        Returns:
+            Dict[str, Any]: Index information from the enVector SDK.
+        """
+        return es2.get_index_info(index_name=index_name)
 
     #------------------- Insert ------------------#
 

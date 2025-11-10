@@ -60,13 +60,85 @@ class MCPServerApp:
         #     """
         #     return PlainTextResponse("OK", status_code=200)
 
+        # ---------- MCP Tools: Create Index ---------- #
+        @self.mcp.tool(
+            name="create_index",
+            description=(
+                "Create an index. There are 3 parameters to set. `index_name`, `dim`, and `index_params`. "
+                "Set index_params accordingly: {'index_type': 'FLAT'} for a flat index or {'index_type': 'IVF_FLAT', 'nlist': <int>, 'default_nprobe': <int>} for IVF."
+            )
+        )
+        async def tool_create_index(
+                index_name: str,
+                dim: int,
+                index_params: Dict[str, Any]
+            ) -> Dict[str, Any]:
+            """
+            MCP tool to create an index using the enVector SDK adapter.
+            Calls self.adapter.call_create_index(...).
+
+            Args:
+                index_name (str): The name of the index to create.
+                dim (int): The dimensionality of the index.
+                index_params (Dict[str, Any]): The parameters for the index.
+
+            Returns:
+                Dict[str, Any]: The create index results from the enVector SDK adapter.
+            """
+            return self.adapter.call_create_index(index_name=index_name, dim=dim, index_params=index_params)
+
+        # ---------- MCP Tools: Get Index List ---------- #
+        @self.mcp.tool(
+            name="get_index_list",
+            description=(
+                "Get the list of indexes from the enVector SDK. "
+                "No parameters are required. "
+                "Returns the list of existing indexes."
+            )
+        )
+        async def tool_get_index_list() -> Dict[str, Any]:
+            """
+            MCP tool to get the list of indexes using the enVector SDK adapter.
+            Call the adapter's call_get_index_list method.
+
+            Returns:
+                Dict[str, Any]: The index list from the enVector SDK adapter.
+            """
+            return self.adapter.call_get_index_list()
+
+        # ---------- MCP Tools: Get Index Info ---------- #
+        @self.mcp.tool(
+            name="get_index_info",
+            description=(
+                "Get information about a specific index from the enVector SDK. "
+                "One parameter is required: `index_name`. "
+                "Returns information about the specified index."
+            )
+        )
+        async def tool_get_index_info(index_name: str) -> Dict[str, Any]:
+            """
+            MCP tool to get information about a specific index using the enVector SDK adapter.
+            Call the adapter's call_get_index_info method.
+
+            Args:
+                index_name (str): The name of the index to retrieve information for.
+
+            Returns:
+                Dict[str, Any]: The index information from the enVector SDK adapter.
+            """
+            return self.adapter.call_get_index_info(index_name=index_name)
+
         # ---------- MCP Tools: Insert ---------- #
         @self.mcp.tool(
             name="insert",
-            description="Insert vectors and metadata using enVector SDK. "
-                       "Allowing one or more vectors, but insert 'batch_size' vectors in once would be more efficient."
-                       "If eval_mode is 'rmp', using batch_size = 128 is recommended. "
-                       "If eval_mode is 'mm', using batch_size = 4096 is recommended. "
+            description=(
+                "Insert vectors using enVector SDK. "
+                "There are 3 parameters to set. `index_name`, `vectors`, and `metadata`. "
+                "Allowing one or more vectors, but insert 'batch_size' vectors in once would be more efficient. "
+                "If eval_mode is 'rmp', using batch_size = 128 is recommended. "
+                "If eval_mode is 'mm', using batch_size = 4096 is recommended. "
+                "Field `metadata` is for attached information for each vector."
+            )
         )
         async def tool_insert(
                 index_name: str,
@@ -115,7 +187,13 @@ class MCPServerApp:
             return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
         # ---------- MCP Tools: Search ---------- #
-        @self.mcp.tool(name="search", description="Search using enVector SDK")
+        @self.mcp.tool(
+            name="search",
+            description=(
+                "Search using enVector SDK. "
+                "There are 3 parameters to set. `index_name`, `query`, and `topk`."
+            )
+        )
         async def tool_search(
                 index_name: str,
                 query: Union[List[float], List[List[float]]],
@@ -216,6 +294,11 @@ if __name__ == "__main__":
         default=os.getenv("ENVECTOR_EVAL_MODE", "rmp"),
         help="enVector evaluation mode (e.g., 'rmp', 'mm').",
     )
+    parser.add_argument(
+        "--encrypted-query",
+        action="store_true",
+        help="Encrypt the query vectors."
+    )
     args = parser.parse_args()
     run_mode = args.mode.lower()
 
@@ -254,13 +337,20 @@ if __name__ == "__main__":
     ENVECTOR_KEY_ID = args.envector_key_id
     ENVECTOR_KEY_PATH = args.envector_key_path
     ENVECTOR_EVAL_MODE = args.envector_eval_mode
+    
+    # Plain-Cipher Query Setting
+    if args.encrypted_query:
+        ENCRYPTED_QUERY = True
+    else:
+        ENCRYPTED_QUERY = False
 
     adapter = EnVectorSDKAdapter(
         endpoint=ENVECTOR_HOST,
         port=ENVECTOR_PORT,
         key_id=ENVECTOR_KEY_ID,
         key_path=ENVECTOR_KEY_PATH,
-        eval_mode=ENVECTOR_EVAL_MODE
+        eval_mode=ENVECTOR_EVAL_MODE,
+        query_encryption=ENCRYPTED_QUERY
     )
     app = MCPServerApp(adapter=adapter, mcp_server_name=MCP_SERVER_NAME)
     def _handle_shutdown(signum, frame):
