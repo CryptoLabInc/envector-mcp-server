@@ -20,7 +20,8 @@ class EnVectorSDKAdapter:
             port: int,
             key_id: str,
             key_path: str,
-            eval_mode: str
+            eval_mode: str,
+            query_encryption: bool
         ):
         """
         Initializes the EnVectorSDKAdapter with an optional endpoint.
@@ -31,6 +32,7 @@ class EnVectorSDKAdapter:
         """
         if not key_path:
             key_path = str(KEY_PATH)
+        self.query_encryption = query_encryption
         es2.init(host=endpoint, port=port, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
 
     #------------------- Create Index ------------------#
@@ -69,7 +71,10 @@ class EnVectorSDKAdapter:
             Any: Raw create index results from the enVector SDK.
         """
         # Return the created index instance
-        return es2.create_index(index_name=index_name, dim=dim, index_params=index_params)
+        if self.query_encryption:
+            return es2.create_index(index_name=index_name, dim=dim, index_params=index_params, query_encryption="cipher")
+        else:
+            return es2.create_index(index_name=index_name, dim=dim, index_params=index_params, query_encryption="plain")
 
     #--------------- Get Index List --------------#
     def call_get_index_list(self) -> Dict[str, Any]:

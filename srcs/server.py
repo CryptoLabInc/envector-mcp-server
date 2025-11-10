@@ -294,6 +294,11 @@ if __name__ == "__main__":
         default=os.getenv("ENVECTOR_EVAL_MODE", "rmp"),
         help="enVector evaluation mode (e.g., 'rmp', 'mm').",
     )
+    parser.add_argument(
+        "--encrypted-query",
+        action="store_true",
+        help="Encrypt the query vectors."
+    )
     args = parser.parse_args()
     run_mode = args.mode.lower()
 
@@ -332,13 +337,20 @@ if __name__ == "__main__":
     ENVECTOR_KEY_ID = args.envector_key_id
     ENVECTOR_KEY_PATH = args.envector_key_path
     ENVECTOR_EVAL_MODE = args.envector_eval_mode
+    
+    # Plain-Cipher Query Setting
+    if args.encrypted_query:
+        ENCRYPTED_QUERY = True
+    else:
+        ENCRYPTED_QUERY = False
 
     adapter = EnVectorSDKAdapter(
         endpoint=ENVECTOR_HOST,
         port=ENVECTOR_PORT,
         key_id=ENVECTOR_KEY_ID,
         key_path=ENVECTOR_KEY_PATH,
-        eval_mode=ENVECTOR_EVAL_MODE
+        eval_mode=ENVECTOR_EVAL_MODE,
+        query_encryption=ENCRYPTED_QUERY
     )
     app = MCPServerApp(adapter=adapter, mcp_server_name=MCP_SERVER_NAME)
     def _handle_shutdown(signum, frame):
