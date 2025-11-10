@@ -42,7 +42,7 @@ python srcs/server.py --mode remote \
     --envector-host 127.0.0.1 \
     --envector-port 50050 \
     --envector-key-id mcp_key \
-    --envector-eval-mode mm
+    --envector-eval-mode rmp
 
 # Local STDIO mode (for MCP desktop integrations)
 python srcs/server.py --mode local

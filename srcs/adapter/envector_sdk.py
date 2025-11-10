@@ -3,6 +3,7 @@
 from typing import Union, List, Dict, Any
 import numpy as np
 import es2  # pip install es2
+from es2.crypto.block import CipherBlock
 
 from pathlib import Path
 
@@ -33,6 +34,44 @@ class EnVectorSDKAdapter:
         if not key_path:
             key_path = str(KEY_PATH)
         es2.init(host=self.endpoint, port=self.port, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
+
+    #------------------- Insert ------------------#
+
+    def call_insert(self, index_name: str, vectors: List[List[float]], metadata: List[Any] = None):
+        """
+        Calls the enVector SDK to perform an insert operation.
+
+        Args:
+            vectors (List[List[float]]): The list of vectors to insert.
+            metadata (List[Any], optional): The list of metadata associated with the vectors. Defaults to None.
+
+        Returns:
+            Dict[str, Any]: If succeed, converted format of the insert results. Otherwise, error message.
+        """
+        try:
+            results = self.invoke_insert(index_name=index_name, vectors=vectors, metadata=metadata)
+            return self._to_json_available({"ok": True, "results": results})
+        except Exception as e:
+            # Handle exceptions and return an appropriate error message
+            return {"ok": False, "error": repr(e)}
+
+    def invoke_insert(self, index_name: str, vectors: List[List[float]], metadata: List[Any] = None):
+        """
+        Invokes the enVector SDK's insert functionality.
+
+        Args:
+            index_name (str): The name of the index to insert into.
+            vectors (Union[List[List[float]], List[CipherBlock]]): The list of vectors to insert.
+            metadata (List[Any], optional): The list of metadata associated with the vectors. Defaults to None.
+
+        Returns:
+            Any: Raw insert results from the enVector SDK.
+        """
+        index = es2.Index(index_name)  # Create an index instance with the given index name
+        # Insert vectors with optional metadata
+        return index.insert(data=vectors, metadata=metadata) # Return list of inserted vectors' IDs
+
+    #------------------- Search ------------------#
 
     def call_search(self, index_name: str, query: Union[List[float], List[List[float]]], topk: int) -> Dict[str, Any]:
         """

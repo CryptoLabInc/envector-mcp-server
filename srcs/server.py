@@ -15,9 +15,10 @@ Expected MCP Tool Return Format:
 """
 
 import argparse
-from typing import Union, List, Dict, Any
+from typing import Union, List, Dict, Any, Optional
 import numpy as np
 import os, sys, signal
+import json
 
 # Ensure current directory is in sys.path for module imports
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -59,6 +60,60 @@ class MCPServerApp:
         #     """
         #     return PlainTextResponse("OK", status_code=200)
 
+        # ---------- MCP Tools: Insert ---------- #
+        @self.mcp.tool(
+            name="insert",
+            description="Insert vectors and metadata using enVector SDK. "
+                       "Allowing one or more vectors, but insert 'batch_size' vectors in once would be more efficient."
+                       "If eval_mode is 'rmp', using batch_size = 128 is recommended. "
+                       "If eval_mode is 'mm', using batch_size = 4096 is recommended. "
+        )
+        async def tool_insert(
+                index_name: str,
+                vectors: Union[List[float], List[List[float]]],
+                metadata: Union[Any, List[Any]] = None
+            ) -> Dict[str, Any]:
+            """
+            MCP tool to perform insert using the enVector SDK adapter.
+            Call the adapter's call_insert method.
+
+            Args:
+                index_name (str): The name of the index to insert into.
+                vectors (Union[List[float], List[List[float]]]): The vector(s) to insert.
+                metadata (Union[Any, List[Any]]): The list of metadata associated with the vectors.
+
+            Returns:
+                Dict[str, Any]: The insert results from the enVector SDK adapter.
+            """
+            # Instance normalization for vectors
+            if isinstance(vectors, np.ndarray):
+                vectors = [vectors.tolist()]
+            elif isinstance(vectors, list) and all(isinstance(v, np.ndarray) for v in vectors):
+                vectors = [v.tolist() for v in vectors]
+            elif isinstance(vectors, list) and all(isinstance(v, float) for v in vectors):
+                vectors = [vectors]
+            elif isinstance(vectors, str):
+                # If `vectors` is passed as a string, try to parse it as JSON
+                try:
+                    vectors = json.loads(vectors)
+                except json.JSONDecodeError:
+                    # If parsing fails, raise an error
+                    raise ValueError("Invalid format has used or failed to parse JSON for `vectors` parameter. Caused by: " + vectors)
+
+            # Instance normalization for metadata
+            if metadata is not None and not isinstance(metadata, list):
+                if isinstance(metadata, str):
+                    # If `metadata` is passed as a string, try to parse it as JSON
+                    try:
+                        metadata = json.loads(metadata)
+                    except json.JSONDecodeError:
+                        # If parsing fails, wrap the string in a list
+                        metadata = [metadata]
+                else:
+                    # If `metadata` is not a list or string, wrap it in a list
+                    metadata = [metadata]
+            return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
+
         # ---------- MCP Tools: Search ---------- #
         @self.mcp.tool(name="search", description="Search using enVector SDK")
         async def tool_search(
@@ -72,7 +127,7 @@ class MCPServerApp:
 
             Args:
                 index_name (str): The name of the index to search.
-                query (Union[List[float], np.ndarray, List[List[float]], List[np.ndarray]]): The search query.
+                query (Union[List[float], List[List[float]]]): The search query.
                 topk (int): The number of top results to return.
 
             Returns:
