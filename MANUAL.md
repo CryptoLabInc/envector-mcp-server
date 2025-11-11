@@ -81,11 +81,10 @@ Run the following Python script in `/path/to/envector-mcp-server/`:
 # Remote HTTP mode (default)
 python srcs/server.py \
     --mode "http" \
-    --host "MCPHOST" \
-    --port "MCPPORT" \
+    --host "localhost" \
+    --port "8000" \
     --server-name "envector_mcp_server" \
-    --envector-host "ENVECTORHOST" \
-    --envector-port 50050 \
+    --envector-address "ENVECTORHOST:50050" \
     --envector-key-id "mcp_key" \
     --envector-key-path "/path/to/keys"
 
@@ -111,7 +110,7 @@ For example, in Gemini CLI, configurate `.gemini/settings.json` to connect the r
     "mcpServers": [
         {
             "name": "envector-mcp-server",
-            "httpUrl": "http://MCPHOST:MCPPORT/mcp",
+            "httpUrl": "http://localhost:8000/mcp",
             "description": "enVector MCP server stores the user's vector data and their corresponding metadata for semantic search."
         },
         ...
