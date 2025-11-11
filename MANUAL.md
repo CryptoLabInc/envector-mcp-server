@@ -123,6 +123,7 @@ The configuration files in AI services:
 - Claude Desktop: `claude_desktop_config.json`
 - Gemini CLI: `.gemini/settings.json`
 - Cursor: `.cursor/mcp.json`
+- Codex: `.codes/config.toml`
 - Cline: `cline_mcp_settings.json`
 
 ### 2. Use Python client
