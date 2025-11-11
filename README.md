@@ -1,18 +1,17 @@
 # enVector-MCP-Server
 ## Description
-We supply MCP Server of `enVector`, `CryptoLab Inc.`'s HE(Homomorphic Encryption)-Based vector search engine.
+We provide MCP Server of `enVector`, `CryptoLab, Inc.`'s HE (Homomorphic Encryption)-Based vector search engine.
 
 ## What is MCP?
-`MCP`, which stands for `Model Context Protocol`, is a protocol used by AI application for access to
-- External data
-- Tools
-- Worflow
-- etc.
+[MCP](https://modelcontextprotocol.io/docs/getting-started/intro), which stands for `Model Context Protocol`, is a protocol used by AI application for access to the following services:
+1) External data
+2) Tools
+3) Workflow
 
-It is kind of pre-defined JSON format protocol. ([What is MCP?](https://modelcontextprotocol.io/docs/getting-started/intro))
+It is kind of pre-defined JSON format protocol.
 
 ### Participant in MCP
-There are 3 participant in `MCP` communication
+There are 3 participant in `MCP` communication.
 - Host
     + AI application
     + ex. `VS Code`, `Claude`, and so on
@@ -59,9 +58,5 @@ As `enVector` is vector search engine based on HE, this `enVector MCP Server` ca
     With pre-defined protocol that `enVector MCP Server` uses, all 'secured-data search' will be processed automatically.
 
 ## Languages Support
-### Available
-- Python
 
-### Wishlist
-- TypeScript
-- Go
+- Python3
