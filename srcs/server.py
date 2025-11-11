@@ -229,7 +229,7 @@ class MCPServerApp:
 
     def run_stdio_service(self) -> None:
         """
-        Runs the MCP server using stdio transport (for local integrations).
+        Runs the MCP server using stdio transport.
         """
         self.mcp.run(transport="stdio")
 
@@ -337,7 +337,7 @@ if __name__ == "__main__":
     ENVECTOR_KEY_ID = args.envector_key_id
     ENVECTOR_KEY_PATH = args.envector_key_path
     ENVECTOR_EVAL_MODE = args.envector_eval_mode
-    
+
     # Plain-Cipher Query Setting
     if args.encrypted_query:
         ENCRYPTED_QUERY = True
