@@ -15,10 +15,11 @@ Expected MCP Tool Return Format:
 """
 
 import argparse
-from typing import Union, List, Dict, Any, Optional
+from typing import Union, List, Dict, Any, Optional, Annotated
 import numpy as np
 import os, sys, signal
 import json
+from pydantic import Field
 
 # Ensure current directory is in sys.path for module imports
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -63,16 +64,13 @@ class MCPServerApp:
         # ---------- MCP Tools: Create Index ---------- #
         @self.mcp.tool(
             name="create_index",
-            description=(
-                "Create an index. There are 3 parameters to set. `index_name`, `dim`, and `index_params`. "
-                "Set index_params accordingly: {'index_type': 'FLAT'} for a flat index or {'index_type': 'IVF_FLAT', 'nlist': <int>, 'default_nprobe': <int>} for IVF."
-            )
+            description="Create an index in enVector."
         )
         async def tool_create_index(
-                index_name: str,
-                dim: int,
-                index_params: Dict[str, Any]
-            ) -> Dict[str, Any]:
+            index_name: Annotated[str, Field(description="index name to create")],
+            dim: Annotated[int, Field(description="dimensionality of the index")],
+            index_params: Annotated[Dict[str, Any], Field(description="indexing parameters including FLAT and IVF_FLAT. The default is FLAT, or set index_params as {'index_type': 'IVF_FLAT', 'nlist': <int>, 'default_nprobe': <int>} for IVF.")]
+        ) -> Dict[str, Any]:
             """
             MCP tool to create an index using the enVector SDK adapter.
             Calls self.adapter.call_create_index(...).
@@ -90,11 +88,7 @@ class MCPServerApp:
         # ---------- MCP Tools: Get Index List ---------- #
         @self.mcp.tool(
             name="get_index_list",
-            description=(
-                "Get the list of indexes from the enVector SDK. "
-                "No parameters are required. "
-                "Returns the list of existing indexes."
-            )
+            description="Get the list of indexes from the enVector SDK."
         )
         async def tool_get_index_list() -> Dict[str, Any]:
             """
@@ -109,13 +103,11 @@ class MCPServerApp:
         # ---------- MCP Tools: Get Index Info ---------- #
         @self.mcp.tool(
             name="get_index_info",
-            description=(
-                "Get information about a specific index from the enVector SDK. "
-                "One parameter is required: `index_name`. "
-                "Returns information about the specified index."
-            )
+            description="Get information about a specific index from the enVector SDK."
         )
-        async def tool_get_index_info(index_name: str) -> Dict[str, Any]:
+        async def tool_get_index_info(
+            index_name: Annotated[str, Field(description="index name to get information for")],
+        ) -> Dict[str, Any]:
             """
             MCP tool to get information about a specific index using the enVector SDK adapter.
             Call the adapter's call_get_index_info method.
@@ -133,18 +125,14 @@ class MCPServerApp:
             name="insert",
             description=(
                 "Insert vectors using enVector SDK. "
-                "There are 3 parameters to set. `index_name`, `vectors`, and `metadata`. "
                 "Allowing one or more vectors, but insert 'batch_size' vectors in once would be more efficient. "
-                "If eval_mode is 'rmp', using batch_size = 128 is recommended. "
-                "If eval_mode is 'mm', using batch_size = 4096 is recommended. "
-                "Field `metadata` is for attached information for each vector."
             )
         )
         async def tool_insert(
-                index_name: str,
-                vectors: Union[List[float], List[List[float]]],
-                metadata: Union[Any, List[Any]] = None
-            ) -> Dict[str, Any]:
+            index_name: Annotated[str, Field(description="index name to insert data into")],
+            vectors: Annotated[Union[List[float], List[List[float]]], Field(description="vectors to insert")],
+            metadata: Annotated[Union[Any, List[Any]], Field(description="the corresponding metadata of the vectors to insert for retrieval")] = None
+        ) -> Dict[str, Any]:
             """
             MCP tool to perform insert using the enVector SDK adapter.
             Call the adapter's call_insert method.
@@ -189,16 +177,13 @@ class MCPServerApp:
         # ---------- MCP Tools: Search ---------- #
         @self.mcp.tool(
             name="search",
-            description=(
-                "Search using enVector SDK. "
-                "There are 3 parameters to set. `index_name`, `query`, and `topk`."
-            )
+            description="Perform vector search and Retrieve Metadata using enVector SDK."
         )
         async def tool_search(
-                index_name: str,
-                query: Union[List[float], List[List[float]]],
-                topk: int
-            ) -> Dict[str, Any]:
+            index_name: Annotated[str, Field(description="index name to search from")],
+            query: Annotated[Any, Field(description="search query vector (list), batch of vectors, or JSON-encoded string")],
+            topk: Annotated[int, Field(description="number of top-k results to return")],
+        ) -> Dict[str, Any]:
             """
             MCP tool to perform search using the enVector SDK adapter.
             Call the adapter's call_search method.
@@ -211,11 +196,43 @@ class MCPServerApp:
             Returns:
                 Dict[str, Any]: The search results from the enVector SDK adapter.
             """
-            if isinstance(query, np.ndarray):
-                query = query.tolist()
-            elif isinstance(query, list) and all(isinstance(q, np.ndarray) for q in query):
-                query = [q.tolist() for q in query]
-            return self.adapter.call_search(index_name=index_name, query=query, topk=topk)
+            def _normalize_query(raw_query: Any) -> Union[List[float], List[List[float]]]:
+                if isinstance(raw_query, str):
+                    raw_query = raw_query.strip()
+                    if not raw_query:
+                        raise ValueError("`query` string is empty. Provide a JSON array of floats or precomputed embedding.")
+                    try:
+                        raw_query = json.loads(raw_query)
+                    except json.JSONDecodeError as exc:
+                        raise ValueError(
+                            "Plain text is not supported for `query`. Convert the text into an embedding vector "
+                            "and pass it as a JSON array (e.g., [[0.1, 0.2], ...])."
+                        ) from exc
+
+                if isinstance(raw_query, np.ndarray):
+                    raw_query = raw_query.tolist()
+                elif isinstance(raw_query, list) and all(isinstance(q, np.ndarray) for q in raw_query):
+                    raw_query = [q.tolist() for q in raw_query]
+
+                def _is_vector(value: Any) -> bool:
+                    return isinstance(value, list) and all(isinstance(v, (int, float)) for v in value)
+
+                if _is_vector(raw_query):
+                    return raw_query
+                if isinstance(raw_query, list) and all(_is_vector(item) for item in raw_query):
+                    return raw_query
+
+                raise ValueError(
+                    "`query` must be a list of floats or a list of float lists. "
+                    f"Received type: {type(raw_query).__name__}"
+                )
+
+            try:
+                normalized_query = _normalize_query(query)
+            except ValueError as exc:
+                # Return structured error so clients get actionable feedback instead of stack traces.
+                return {"ok": False, "error": str(exc)}
+            return self.adapter.call_search(index_name=index_name, query=normalized_query, topk=topk)
 
     def run_http_service(self, host: str, port: int) -> None:
         """
