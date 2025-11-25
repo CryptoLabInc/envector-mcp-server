@@ -53,7 +53,7 @@ class SBERTSDKAdapter:
 
         Args:
             text (str): The input text to get the embedding vector.
-        
+
         Returns:
             List[float]: The embedding vector for the input text.
         """
@@ -80,7 +80,7 @@ class HuggingFaceSDKAdapter(EmbeddingAdapter):
             model_name (str): The name of the HuggingFace model to use.
             cache_dir (str): The directory to cache the model.
         """
-        
+
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
         self.model = AutoModel.from_pretrained(model_name, cache_dir=cache_dir)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -94,7 +94,7 @@ class HuggingFaceSDKAdapter(EmbeddingAdapter):
 
         Args:
             text (str): The input text to get the embedding vector.
-        
+
         Returns:
             List[float]: The embedding vector for the input text.
         """
@@ -108,7 +108,7 @@ class HuggingFaceSDKAdapter(EmbeddingAdapter):
 
         # l2 normalize
         embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1).cpu().tolist()
-        
+
         return embeddings
 
 
@@ -123,7 +123,7 @@ class OpenAISDKAdapter:
         Args:
             model_name (str): The OpenAI model name.
         """
-        
+
         import openai
 
         self.model_name = model_name

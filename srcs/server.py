@@ -179,10 +179,10 @@ class MCPServerApp:
                     except json.JSONDecodeError:
                         # If parsing fails, raise an error
                         raise ValueError("Invalid format has used or failed to parse JSON for `vectors` parameter. Caused by: " + vectors)
-            
+
             else:
                 raise ValueError("`vectors` parameter must be provided if `metadata` is not given.")
-            
+
             return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
         # ---------- MCP Tools: Search ---------- #
@@ -379,7 +379,7 @@ if __name__ == "__main__":
         ENVECTOR_PORT = args.envector_port
     ENVECTOR_KEY_ID = args.envector_key_id
     ENVECTOR_KEY_PATH = args.envector_key_path
-    ENVECTOR_EVAL_MODE = args.envector_eval_mode    
+    ENVECTOR_EVAL_MODE = args.envector_eval_mode
     ENCRYPTED_QUERY = args.encrypted_query # Plain-Cipher Query Setting
 
     adapter = EnVectorSDKAdapter(
