@@ -336,8 +336,6 @@ if __name__ == "__main__":
     ENVECTOR_KEY_PATH = args.envector_key_path
     ENVECTOR_EVAL_MODE = args.envector_eval_mode
     ENVECTOR_CLOUD_ACCESS_TOKEN = args.envector_cloud_access_token
-    
-    
     # Plain-Cipher Query Setting
     if args.encrypted_query:
         ENCRYPTED_QUERY = True
