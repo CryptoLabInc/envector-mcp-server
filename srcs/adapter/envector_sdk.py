@@ -16,7 +16,7 @@ class EnVectorSDKAdapter:
     """
     def __init__(
             self,
-            address : str,
+            address: str,
             key_id: str,
             key_path: str,
             eval_mode: str,
