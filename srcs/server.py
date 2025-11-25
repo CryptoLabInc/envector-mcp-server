@@ -27,7 +27,7 @@ if CURRENT_DIR not in sys.path:
     sys.path.append(CURRENT_DIR)
 
 from fastmcp import FastMCP  # pip install fastmcp
-from adapter.envector_sdk import EnVectorSDKAdapter
+from adapter import EnVectorSDKAdapter, EmbeddingAdapter
 
 # # For Health Check (Starlette Imports -> Included in FastMCP as dependency)
 # from starlette.requests import Request
@@ -40,7 +40,8 @@ class MCPServerApp:
     def __init__(
             self,
             adapter: EnVectorSDKAdapter,
-            mcp_server_name: str = "envector_mcp_server"
+            mcp_server_name: str = "envector_mcp_server",
+            embedding: EmbeddingAdapter = None
         ) -> None:
         """
         Initializes the MCPServerApp with the given adapter and server name.
@@ -50,6 +51,7 @@ class MCPServerApp:
         """
         self.adapter = adapter
         self.mcp = FastMCP(name=mcp_server_name)
+        self.embedding = embedding
 
         # # ---------- Health Check Route ---------- #
         # @self.mcp.custom_route("/health/", methods=["GET"])
@@ -130,7 +132,7 @@ class MCPServerApp:
         )
         async def tool_insert(
             index_name: Annotated[str, Field(description="index name to insert data into")],
-            vectors: Annotated[Union[List[float], List[List[float]]], Field(description="vectors to insert")],
+            vectors: Annotated[Union[List[float], List[List[float]]], Field(description="vectors to insert")] = None,
             metadata: Annotated[Union[Any, List[Any]], Field(description="the corresponding metadata of the vectors to insert for retrieval")] = None
         ) -> Dict[str, Any]:
             """
@@ -145,33 +147,42 @@ class MCPServerApp:
             Returns:
                 Dict[str, Any]: The insert results from the enVector SDK adapter.
             """
-            # Instance normalization for vectors
-            if isinstance(vectors, np.ndarray):
-                vectors = [vectors.tolist()]
-            elif isinstance(vectors, list) and all(isinstance(v, np.ndarray) for v in vectors):
-                vectors = [v.tolist() for v in vectors]
-            elif isinstance(vectors, list) and all(isinstance(v, float) for v in vectors):
-                vectors = [vectors]
-            elif isinstance(vectors, str):
-                # If `vectors` is passed as a string, try to parse it as JSON
-                try:
-                    vectors = json.loads(vectors)
-                except json.JSONDecodeError:
-                    # If parsing fails, raise an error
-                    raise ValueError("Invalid format has used or failed to parse JSON for `vectors` parameter. Caused by: " + vectors)
-
             # Instance normalization for metadata
-            if metadata is not None and not isinstance(metadata, list):
-                if isinstance(metadata, str):
-                    # If `metadata` is passed as a string, try to parse it as JSON
-                    try:
-                        metadata = json.loads(metadata)
-                    except json.JSONDecodeError:
-                        # If parsing fails, wrap the string in a list
+            if metadata is not None:
+                if not isinstance(metadata, list):
+                    if isinstance(metadata, str):
+                        # If `metadata` is passed as a string, try to parse it as JSON
+                        try:
+                            metadata = json.loads(metadata)
+                        except json.JSONDecodeError:
+                            # If parsing fails, wrap the string in a list
+                            metadata = [metadata]
+                    else:
+                        # If `metadata` is not a list or string, wrap it in a list
                         metadata = [metadata]
-                else:
-                    # If `metadata` is not a list or string, wrap it in a list
-                    metadata = [metadata]
+
+                if self.embedding is not None:
+                    vectors = self.embedding.get_embedding(metadata)
+
+            elif vectors is not None:
+                # Instance normalization for vectors
+                if isinstance(vectors, np.ndarray):
+                    vectors = [vectors.tolist()]
+                elif isinstance(vectors, list) and all(isinstance(v, np.ndarray) for v in vectors):
+                    vectors = [v.tolist() for v in vectors]
+                elif isinstance(vectors, list) and all(isinstance(v, float) for v in vectors):
+                    vectors = [vectors]
+                elif isinstance(vectors, str):
+                    # If `vectors` is passed as a string, try to parse it as JSON
+                    try:
+                        vectors = json.loads(vectors)
+                    except json.JSONDecodeError:
+                        # If parsing fails, raise an error
+                        raise ValueError("Invalid format has used or failed to parse JSON for `vectors` parameter. Caused by: " + vectors)
+            
+            else:
+                raise ValueError("`vectors` parameter must be provided if `metadata` is not given.")
+            
             return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
         # ---------- MCP Tools: Search ---------- #
@@ -199,6 +210,10 @@ class MCPServerApp:
             def _normalize_query(raw_query: Any) -> Union[List[float], List[List[float]]]:
                 if isinstance(raw_query, str):
                     raw_query = raw_query.strip()
+
+                    if self.embedding is not None:
+                        return self.embedding.get_embedding([raw_query])[0]
+
                     if not raw_query:
                         raise ValueError("`query` string is empty. Provide a JSON array of floats or precomputed embedding.")
                     try:
@@ -316,6 +331,17 @@ if __name__ == "__main__":
         action="store_true",
         help="Encrypt the query vectors."
     )
+    parser.add_argument(
+        "--embedding-mode",
+        default="hf",
+        choices=("sbert", "hf", "openai"),
+        help="Embedding model name for enVector. 'sbert' for SBERT, 'hf' for HuggingFace, 'openai' for OpenAI API.",
+    )
+    parser.add_argument(
+        "--embedding-model",
+        default="sentence-transformers/all-MiniLM-L6-v2",
+        help="Embedding model name for enVector.",
+    )
     args = parser.parse_args()
     run_mode = args.mode.lower()
 
@@ -353,13 +379,8 @@ if __name__ == "__main__":
         ENVECTOR_PORT = args.envector_port
     ENVECTOR_KEY_ID = args.envector_key_id
     ENVECTOR_KEY_PATH = args.envector_key_path
-    ENVECTOR_EVAL_MODE = args.envector_eval_mode
-
-    # Plain-Cipher Query Setting
-    if args.encrypted_query:
-        ENCRYPTED_QUERY = True
-    else:
-        ENCRYPTED_QUERY = False
+    ENVECTOR_EVAL_MODE = args.envector_eval_mode    
+    ENCRYPTED_QUERY = args.encrypted_query # Plain-Cipher Query Setting
 
     adapter = EnVectorSDKAdapter(
         endpoint=ENVECTOR_HOST,
@@ -369,7 +390,18 @@ if __name__ == "__main__":
         eval_mode=ENVECTOR_EVAL_MODE,
         query_encryption=ENCRYPTED_QUERY
     )
-    app = MCPServerApp(adapter=adapter, mcp_server_name=MCP_SERVER_NAME)
+
+    if args.embedding_model is not None:
+        embedding = EmbeddingAdapter(
+            mode=args.embedding_mode,
+            model_name=args.embedding_model
+        )
+    else:
+        print(f"[WARN] No embedding model specified. Proceeding without embedding adapter.")
+        embedding = None
+
+    app = MCPServerApp(adapter=adapter, mcp_server_name=MCP_SERVER_NAME, embedding=embedding)
+
     def _handle_shutdown(signum, frame):
         # parameter `frame` is not used, but required by signal handler signature
         sig_name = signal.Signals(signum).name if hasattr(signal, "Signals") else str(signum)
