@@ -332,6 +332,11 @@ if __name__ == "__main__":
         help="Encrypt the query vectors."
     )
     parser.add_argument(
+         "--envector-cloud-access-token",
+        default=os.getenv("ENVECTOR_CLOUD_ACCESS_TOKEN", None),
+        help="enVector cloud access token."
+    )
+    parser.add_argument(
         "--embedding-mode",
         default="hf",
         choices=("sbert", "hf", "openai"),
@@ -365,30 +370,24 @@ if __name__ == "__main__":
     # Environment Variables for enVector SDK Configuration
     """
     Environment Variables for enVector SDK Configuration:
-    - ENVECTOR_ENDPOINT: The endpoint URL of the `enVector` (default: "127.0.0.1")
-    - ENVECTOR_PORT: The port number of the `enVector` (default: 50050)
+    - ENVECTOR_ADDRESS: The address (host:port) of the `enVector` (overrides --envector-host and --envector-port if provided)
     - ENVECTOR_KEY_ID: The key ID for the `enVector` SDK (default: "mcp_key")
     - ENVECTOR_EVAL_MODE: The evaluation mode of the `enVector` ["rmp", "mm"] (default: "rmp")
     """
-    if args.envector_address:
-        envector_address = args.envector_address.split(":")
-        ENVECTOR_HOST = envector_address[0]
-        ENVECTOR_PORT = int(envector_address[1]) if len(envector_address) > 1 else 50050
-    else:
-        ENVECTOR_HOST = args.envector_host
-        ENVECTOR_PORT = args.envector_port
+    ENVECTOR_ADDRESS = args.envector_address if args.envector_address else args.envector_host + ":" + str(args.envector_port)
+    ENVECTOR_CLOUD_ACCESS_TOKEN = args.envector_cloud_access_token
     ENVECTOR_KEY_ID = args.envector_key_id
     ENVECTOR_KEY_PATH = args.envector_key_path
     ENVECTOR_EVAL_MODE = args.envector_eval_mode
     ENCRYPTED_QUERY = args.encrypted_query # Plain-Cipher Query Setting
 
     adapter = EnVectorSDKAdapter(
-        endpoint=ENVECTOR_HOST,
-        port=ENVECTOR_PORT,
+        address=ENVECTOR_ADDRESS,
         key_id=ENVECTOR_KEY_ID,
         key_path=ENVECTOR_KEY_PATH,
         eval_mode=ENVECTOR_EVAL_MODE,
-        query_encryption=ENCRYPTED_QUERY
+        query_encryption=ENCRYPTED_QUERY,
+        access_token=ENVECTOR_CLOUD_ACCESS_TOKEN,
     )
 
     if args.embedding_model is not None:
