@@ -16,12 +16,12 @@ class EnVectorSDKAdapter:
     """
     def __init__(
             self,
-            endpoint: str,
-            port: int,
+            address: str,
             key_id: str,
             key_path: str,
             eval_mode: str,
-            query_encryption: bool
+            query_encryption: bool,
+            access_token: str = None,
         ):
         """
         Initializes the EnVectorSDKAdapter with an optional endpoint.
@@ -33,7 +33,7 @@ class EnVectorSDKAdapter:
         if not key_path:
             key_path = str(KEY_PATH)
         self.query_encryption = query_encryption
-        es2.init(host=endpoint, port=port, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True)
+        es2.init(address=address, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True, access_token=access_token)
 
     #------------------- Create Index ------------------#
 
