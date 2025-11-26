@@ -27,6 +27,7 @@ if CURRENT_DIR not in sys.path:
     sys.path.append(CURRENT_DIR)
 
 from fastmcp import FastMCP  # pip install fastmcp
+from fastmcp.exceptions import ToolError
 from adapter import EnVectorSDKAdapter, EmbeddingAdapter
 
 # # For Health Check (Starlette Imports -> Included in FastMCP as dependency)
@@ -245,9 +246,8 @@ class MCPServerApp:
             try:
                 preprocessed_query = _preprocess_query(query)
             except ValueError as exc:
-                # Return structured error so clients get actionable feedback instead of stack traces.
-                return {"ok": False, "error": str(exc)}
-            return self.envector.call_search(index_name=index_name, query=preprocessed_query, topk=topk)
+                raise ToolError(f"Invalid query parameter: {exc}") from exc
+            return self.adapter.call_search(index_name=index_name, query=preprocessed_query, topk=topk)
 
     def run_http_service(self, host: str, port: int) -> None:
         """
