@@ -247,7 +247,7 @@ class MCPServerApp:
                 preprocessed_query = _preprocess_query(query)
             except ValueError as exc:
                 raise ToolError(f"Invalid query parameter: {exc}") from exc
-            return self.adapter.call_search(index_name=index_name, query=preprocessed_query, topk=topk)
+            return self.envector.call_search(index_name=index_name, query=preprocessed_query, topk=topk)
 
     def run_http_service(self, host: str, port: int) -> None:
         """
@@ -399,7 +399,11 @@ if __name__ == "__main__":
         print(f"[WARN] No embedding model specified. Proceeding without embedding adapter.")
         embedding = None
 
-    app = MCPServerApp(adapter=envector_adapter, mcp_server_name=MCP_SERVER_NAME, embedding=embedding_adapter)
+    app = MCPServerApp(
+        envector_adapter=envector_adapter,
+        mcp_server_name=MCP_SERVER_NAME,
+        embedding_adapter=embedding_adapter,
+    )
 
     def _handle_shutdown(signum, frame):
         # parameter `frame` is not used, but required by signal handler signature

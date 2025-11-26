@@ -14,7 +14,7 @@ if SRCS not in sys.path:
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
 from server import MCPServerApp
-from adapter.envector_sdk import EnVectorSDKAdapter
+from adapter import EnVectorSDKAdapter, EmbeddingAdapter
 
 @pytest.fixture
 def mcp_server():
@@ -57,7 +57,7 @@ def mcp_server():
             #   - Expected Return Type: List[Dict[str, Any]]
             return [{"id": 1, "score": 0.9, "metadata": {"fieldA": "valueA"}}]
 
-    app = MCPServerApp(adapter=FakeAdapter(), mcp_server_name="test-mcp")
+    app = MCPServerApp(envector_adapter=FakeAdapter(), mcp_server_name="test-mcp")
     return app.mcp  # FastMCP Instance
 
 
