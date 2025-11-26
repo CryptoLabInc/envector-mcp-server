@@ -1,10 +1,6 @@
 from typing import List, Union
 
 import numpy as np
-import torch
-
-from sentence_transformers import SentenceTransformer
-from transformers import AutoTokenizer, AutoModel
 
 
 class EmbeddingAdapter:
@@ -39,6 +35,9 @@ class SBERTSDKAdapter:
         Args:
             model_name (str): The name of the Sentence Transformer model to use.
         """
+
+        from sentence_transformers import SentenceTransformer
+        import torch
 
         self.model = SentenceTransformer(model_name, trust_remote_code=True)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -81,6 +80,9 @@ class HuggingFaceSDKAdapter(EmbeddingAdapter):
             cache_dir (str): The directory to cache the model.
         """
 
+        import torch
+        from transformers import AutoTokenizer, AutoModel
+
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
         self.model = AutoModel.from_pretrained(model_name, cache_dir=cache_dir)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -98,6 +100,8 @@ class HuggingFaceSDKAdapter(EmbeddingAdapter):
         Returns:
             List[float]: The embedding vector for the input text.
         """
+        import torch
+
         for text in texts:
             # Tokenize sentences
             encoded_input = self.tokenizer(text, padding=True, truncation=True, return_tensors='pt', max_length=512)
