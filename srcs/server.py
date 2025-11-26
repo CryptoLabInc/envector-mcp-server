@@ -196,7 +196,7 @@ class MCPServerApp:
             Returns:
                 Dict[str, Any]: The search results from the enVector SDK adapter.
             """
-            def _normalize_query(raw_query: Any) -> Union[List[float], List[List[float]]]:
+            def _preprocess_query(raw_query: Any) -> Union[List[float], List[List[float]]]:
                 if isinstance(raw_query, str):
                     raw_query = raw_query.strip()
                     if not raw_query:
@@ -228,11 +228,11 @@ class MCPServerApp:
                 )
 
             try:
-                normalized_query = _normalize_query(query)
+                preprocessed_query = _preprocess_query(query)
             except ValueError as exc:
                 # Return structured error so clients get actionable feedback instead of stack traces.
                 return {"ok": False, "error": str(exc)}
-            return self.adapter.call_search(index_name=index_name, query=normalized_query, topk=topk)
+            return self.adapter.call_search(index_name=index_name, query=preprocessed_query, topk=topk)
 
     def run_http_service(self, host: str, port: int) -> None:
         """
