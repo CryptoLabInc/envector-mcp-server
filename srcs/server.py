@@ -39,9 +39,9 @@ class MCPServerApp:
     """
     def __init__(
             self,
-            adapter: EnVectorSDKAdapter,
+            envector_adapter: EnVectorSDKAdapter,
+            embedding_adapter: EmbeddingAdapter = None,
             mcp_server_name: str = "envector_mcp_server",
-            embedding: EmbeddingAdapter = None
         ) -> None:
         """
         Initializes the MCPServerApp with the given adapter and server name.
@@ -49,9 +49,9 @@ class MCPServerApp:
             adapter (EnVectorSDKAdapter): The enVector SDK adapter instance.
             mcp_server_name (str): The name of the MCP server.
         """
-        self.adapter = adapter
+        self.envector = envector_adapter
+        self.embedding = embedding_adapter
         self.mcp = FastMCP(name=mcp_server_name)
-        self.embedding = embedding
 
         # # ---------- Health Check Route ---------- #
         # @self.mcp.custom_route("/health/", methods=["GET"])
@@ -75,7 +75,7 @@ class MCPServerApp:
         ) -> Dict[str, Any]:
             """
             MCP tool to create an index using the enVector SDK adapter.
-            Calls self.adapter.call_create_index(...).
+            Calls self.envector.call_create_index(...).
 
             Args:
                 index_name (str): The name of the index to create.
@@ -85,7 +85,7 @@ class MCPServerApp:
             Returns:
                 Dict[str, Any]: The create index results from the enVector SDK adapter.
             """
-            return self.adapter.call_create_index(index_name=index_name, dim=dim, index_params=index_params)
+            return self.envector.call_create_index(index_name=index_name, dim=dim, index_params=index_params)
 
         # ---------- MCP Tools: Get Index List ---------- #
         @self.mcp.tool(
@@ -100,7 +100,7 @@ class MCPServerApp:
             Returns:
                 Dict[str, Any]: The index list from the enVector SDK adapter.
             """
-            return self.adapter.call_get_index_list()
+            return self.envector.call_get_index_list()
 
         # ---------- MCP Tools: Get Index Info ---------- #
         @self.mcp.tool(
@@ -120,7 +120,7 @@ class MCPServerApp:
             Returns:
                 Dict[str, Any]: The index information from the enVector SDK adapter.
             """
-            return self.adapter.call_get_index_info(index_name=index_name)
+            return self.envector.call_get_index_info(index_name=index_name)
 
         # ---------- MCP Tools: Insert ---------- #
         @self.mcp.tool(
@@ -183,7 +183,7 @@ class MCPServerApp:
             else:
                 raise ValueError("`vectors` parameter must be provided if `metadata` is not given.")
 
-            return self.adapter.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
+            return self.envector.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
         # ---------- MCP Tools: Search ---------- #
         @self.mcp.tool(
@@ -247,7 +247,7 @@ class MCPServerApp:
             except ValueError as exc:
                 # Return structured error so clients get actionable feedback instead of stack traces.
                 return {"ok": False, "error": str(exc)}
-            return self.adapter.call_search(index_name=index_name, query=preprocessed_query, topk=topk)
+            return self.envector.call_search(index_name=index_name, query=preprocessed_query, topk=topk)
 
     def run_http_service(self, host: str, port: int) -> None:
         """
@@ -381,7 +381,7 @@ if __name__ == "__main__":
     ENVECTOR_EVAL_MODE = args.envector_eval_mode
     ENCRYPTED_QUERY = args.encrypted_query # Plain-Cipher Query Setting
 
-    adapter = EnVectorSDKAdapter(
+    envector_adapter = EnVectorSDKAdapter(
         address=ENVECTOR_ADDRESS,
         key_id=ENVECTOR_KEY_ID,
         key_path=ENVECTOR_KEY_PATH,
@@ -391,7 +391,7 @@ if __name__ == "__main__":
     )
 
     if args.embedding_model is not None:
-        embedding = EmbeddingAdapter(
+        embedding_adapter = EmbeddingAdapter(
             mode=args.embedding_mode,
             model_name=args.embedding_model
         )
@@ -399,7 +399,7 @@ if __name__ == "__main__":
         print(f"[WARN] No embedding model specified. Proceeding without embedding adapter.")
         embedding = None
 
-    app = MCPServerApp(adapter=adapter, mcp_server_name=MCP_SERVER_NAME, embedding=embedding)
+    app = MCPServerApp(adapter=envector_adapter, mcp_server_name=MCP_SERVER_NAME, embedding=embedding_adapter)
 
     def _handle_shutdown(signum, frame):
         # parameter `frame` is not used, but required by signal handler signature
