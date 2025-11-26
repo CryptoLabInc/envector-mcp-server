@@ -212,7 +212,7 @@ class MCPServerApp:
                 Dict[str, Any]: The search results from the enVector SDK adapter.
             """
             def _preprocess_query(raw_query: Any) -> Union[List[float], List[List[float]]]:
-                print("DEBUG preprocess called with", type(raw_query), raw_query)
+                # print("DEBUG preprocess called with", type(raw_query), raw_query)
                 if isinstance(raw_query, str):
                     raw_query = raw_query.strip()
 
@@ -403,7 +403,7 @@ if __name__ == "__main__":
             model_name=args.embedding_model
         )
     else:
-        print("[WARN] No embedding model specified. Proceeding without embedding adapter.")
+        # print("[WARN] No embedding model specified. Proceeding without embedding adapter.")
         embedding_adapter = None
 
     app = MCPServerApp(

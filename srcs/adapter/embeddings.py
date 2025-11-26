@@ -44,7 +44,7 @@ class SBERTSDKAdapter:
         self.model.to(self.device)
         self.model.eval()
 
-        print(f"SBERT model '{model_name}' loaded.")
+        # print(f"SBERT model '{model_name}' loaded.")
 
     def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]]]:
         """
@@ -88,7 +88,7 @@ class HuggingFaceSDKAdapter(EmbeddingAdapter):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model.to(self.device)
 
-        print(f"HuggingFace model '{model_name}' loaded.")
+        # print(f"HuggingFace model '{model_name}' loaded.")
 
     def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]]]:
         """
@@ -133,7 +133,7 @@ class OpenAISDKAdapter:
         self.model_name = model_name
         self.client = openai.OpenAI()
 
-        print(f"OpenAI model '{model_name}' loaded.")
+        # print(f"OpenAI model '{model_name}' loaded.")
 
     def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]]]:
         """
