@@ -407,8 +407,8 @@ if __name__ == "__main__":
         embedding_adapter = None
 
     app = MCPServerApp(
-        envector_adapter=envector_adapter,
         mcp_server_name=MCP_SERVER_NAME,
+        envector_adapter=envector_adapter,
         embedding_adapter=embedding_adapter,
     )
 
