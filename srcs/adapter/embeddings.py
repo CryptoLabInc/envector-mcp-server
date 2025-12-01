@@ -37,14 +37,9 @@ class SBERTSDKAdapter:
         """
 
         from sentence_transformers import SentenceTransformer
-        import torch
 
         self.model = SentenceTransformer(model_name, trust_remote_code=True)
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model.to(self.device)
-        self.model.eval()
 
-        # print(f"SBERT model '{model_name}' loaded.")
 
     def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]]]:
         """
@@ -80,15 +75,11 @@ class HuggingFaceSDKAdapter(EmbeddingAdapter):
             cache_dir (str): The directory to cache the model.
         """
 
-        import torch
         from transformers import AutoTokenizer, AutoModel
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
         self.model = AutoModel.from_pretrained(model_name, cache_dir=cache_dir)
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model.to(self.device)
 
-        # print(f"HuggingFace model '{model_name}' loaded.")
 
     def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]]]:
         """
@@ -100,18 +91,15 @@ class HuggingFaceSDKAdapter(EmbeddingAdapter):
         Returns:
             List[float]: The embedding vector for the input text.
         """
-        import torch
-
         for text in texts:
             # Tokenize sentences
             encoded_input = self.tokenizer(text, padding=True, truncation=True, return_tensors='pt', max_length=512)
 
         # Compute token embeddings
-        with torch.no_grad():
-            embeddings = self.model(**encoded_input.to(self.device)).last_hidden_state[:,0,:]
+        embeddings = self.model(**encoded_input).last_hidden_state[:,0,:]
 
         # l2 normalize
-        embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1).cpu().tolist()
+        embeddings /= np.linalg.norm(embeddings.numpy(), axis=1, keepdims=True)  # normalize for IP
 
         return embeddings
 
