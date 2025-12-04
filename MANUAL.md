@@ -33,7 +33,7 @@ MANUAL.md                   # User Manual
         source .env
         ```
 
-    2. CLI overrides
+    2. CLI overrides (Recommended)
 
         Every setting has default value, but, you can check option with `python srcs/server.py --help` and overwrite each value with CLI.
 
@@ -86,7 +86,9 @@ python srcs/server.py \
     --server-name "envector_mcp_server" \
     --envector-address "ENVECTORHOST:50050" \
     --envector-key-id "mcp_key" \
-    --envector-key-path "/path/to/keys"
+    --envector-key-path "/path/to/keys" \
+    --embedding-mode "hf" \
+    --embedding-model "sentence-transformers/all-MiniLM-L6-v2"
 
 # Local STDIO mode (for MCP desktop integrations)
 python srcs/server.py \

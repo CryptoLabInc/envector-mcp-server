@@ -5,6 +5,8 @@ import pytest
 
 from typing import Union, List, Any, Dict, Optional
 
+import numpy as np
+
 # Add srcs directory to import path relative to project root
 ROOT = os.path.dirname(os.path.dirname(__file__))
 SRCS = os.path.join(ROOT, "srcs")
@@ -14,7 +16,18 @@ if SRCS not in sys.path:
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
 from server import MCPServerApp
-from adapter.envector_sdk import EnVectorSDKAdapter
+from adapter import EnVectorSDKAdapter, EmbeddingAdapter
+
+# embedding fake adapter
+class FakeEmbeddingAdapter(EmbeddingAdapter):
+    def __init__(self):
+        pass  # Actual initialization not needed
+
+    # ----------- Mocked method: get_embedding ----------- #
+    def get_embedding(self, texts: List[str]) -> np.ndarray:
+        # Return a fake response
+        #   - Expected Return Type: List[Dict[str, Any]]
+        return np.array([[0.1, 0.2, 0.3] * (i+1) for i in range(len(texts))])
 
 @pytest.fixture
 def mcp_server():
@@ -57,7 +70,7 @@ def mcp_server():
             #   - Expected Return Type: List[Dict[str, Any]]
             return [{"id": 1, "score": 0.9, "metadata": {"fieldA": "valueA"}}]
 
-    app = MCPServerApp(adapter=FakeAdapter(), mcp_server_name="test-mcp")
+    app = MCPServerApp(envector_adapter=FakeAdapter(), mcp_server_name="test-mcp", embedding_adapter=FakeEmbeddingAdapter())
     return app.mcp  # FastMCP Instance
 
 
@@ -261,20 +274,5 @@ async def test_call_tool_happy_path(mcp_server):
         # }
         assert data.get("ok") is True
         assert data.get("results", [{}])[0].get("metadata", {}).get("fieldA") == "valueA"
-
-# Invalid Argument Type Test
-@pytest.mark.asyncio
-async def test_call_tool_invalid_args_type_error(mcp_server):
-    async with Client(mcp_server) as client:
-        # Invalid parameter value for query
-        with pytest.raises(Exception):
-            await client.call_tool(
-                "search",
-                {
-                    "index_name": "test_index",
-                    "query": "this_should_be_a_list_of_floats",  # Invalid type
-                    "topk": 5
-                }
-            ) # Expected to raise an exception due to invalid argument type
 
 # ----------- Search Tool Tests Finished ----------- #
