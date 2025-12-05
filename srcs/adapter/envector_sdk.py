@@ -33,7 +33,6 @@ class EnVectorSDKAdapter:
         if not key_path:
             key_path = str(KEY_PATH)
         self.query_encryption = query_encryption
-        print(f"[EnVectorSDKAdapter] Initializing enVector SDK with address: {address}, key_path: {key_path}, key_id: {key_id}, eval_mode: {eval_mode}, query_encryption: {query_encryption}, access_token: {access_token is not None}")
         ev.init(address=address, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True, access_token=access_token)
 
     #------------------- Create Index ------------------#
