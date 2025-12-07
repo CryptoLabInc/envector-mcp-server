@@ -201,13 +201,14 @@ class MCPServerApp:
         )
         async def tool_insert_documents_from_path(
             index_name: Annotated[str, Field(description="index name to insert data into")],
-            document_path: Annotated[Union[Any, List[Any]], Field(description="documents path to insert")] = None
+            document_path: Annotated[Union[Any, List[Any]], Field(description="documents path to insert")] = None,
+            language: Annotated[Optional[str], Field(description="language of the documents for preprocessing and chunking")] = "DOCUMENT",
         ) -> Dict[str, Any]:
             """
             MCP tool to perform insert of documents using the enVector SDK adapter.
 
             """
-            chunk_docs = self.preprocessor.preprocess_documents_from_path(path=document_path)
+            chunk_docs = self.preprocessor.preprocess_documents_from_path(path=document_path, language=language)
             text = [chunk["text"] for chunk in chunk_docs]
             metadata = [json.dumps(chunk) for chunk in chunk_docs]
             vectors = self.embedding.get_embedding(text)
@@ -224,13 +225,13 @@ class MCPServerApp:
         )
         async def tool_insert_documents_from_text(
             index_name: Annotated[str, Field(description="index name to insert data into")],
-            document_path: Annotated[Union[Any, List[Any]], Field(description="documents path to insert")] = None
+            texts: Annotated[Union[Any, List[Any]], Field(description="document text to insert")] = None,
         ) -> Dict[str, Any]:
             """
             MCP tool to perform insert of documents using the enVector SDK adapter.
 
             """
-            chunk_docs = self.preprocessor.preprocess_document_from_text(texts=document_path)
+            chunk_docs = self.preprocessor.preprocess_document_from_text(texts=texts)
             text = [chunk["text"] for chunk in chunk_docs]
             metadata = [json.dumps(chunk) for chunk in chunk_docs]
             vectors = self.embedding.get_embedding(text)

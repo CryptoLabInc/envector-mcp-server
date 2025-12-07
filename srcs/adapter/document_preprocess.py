@@ -34,15 +34,14 @@ class DocumentPreprocessingAdapter:
     def preprocess_document_from_text(
         self,
         texts: List[str],
-        language: str = None,
     ) -> None:
         """
         Preprocess documents from the given text inputs
         """
         # check language support
-        language = self._check_language_supported(language)
+        language = self._check_language_supported(language="DOCUMENT")
         # Load documents from the given files path
-        documents = self._load_documents_from_text(texts, language)
+        documents = self._load_documents_from_text(texts)
         # get text splitter
         splitter = self._get_splitter(language)
         # Chunk documents
