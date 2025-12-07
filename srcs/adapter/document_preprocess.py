@@ -7,9 +7,14 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter, Language
 from logging import getLogger
 logger = getLogger(__name__)
 
+SUPPORTED_LANG = [e.value for e in Language]
 EXT_PATTERN = {
     "PYTHON": ["*.py"],
     "DOCUMENT": ["*.md", "*.mdx"],
+}
+CHUNK_OPTS = {
+    "PYTHON": {"chunk_size": 800, "chunk_overlap": 200},
+    "DOCUMENT": {"chunk_size": 1000, "chunk_overlap": 200},
 }
 
 @dataclass
@@ -25,31 +30,59 @@ class DocumentPreprocessingAdapter:
     def __init__(self) -> None:
         pass
 
-    def preprocess_documents(
+    def preprocess_document_from_text(
+        self,
+        texts: List[str],
+        language: str = None,
+    ) -> None:
+        """
+        Preprocess documents from the given text inputs
+        """
+        # check language support
+        language = self._check_language_supported(language)
+        # Load documents from the given files path
+        documents = self._load_documents_from_text(texts, language)
+        # get text splitter
+        splitter = self._get_splitter(language)
+        # Chunk documents
+        chunks = self._chunk_documents(documents, splitter)
+        return chunks
+
+    def preprocess_documents_from_path(
         self,
         path: str,
         language: str = None,
-        chunk_size: int = 800,
-        chunk_overlap: int = 200
     ) -> None:
         """
         Preprocess documents from the given path
         """
+        # check language support
+        language = self._check_language_supported(language)
+        # Load documents from the given files path
+        documents = self._load_documents_from_path(path, language)
+        # get text splitter
+        splitter = self._get_splitter(language)
+        # Chunk documents
+        chunks = self._chunk_documents(documents, splitter)
+        return chunks
+
+    def _check_language_supported(self, language: str) -> bool:
         if language is None:
             language = "DOCUMENT"
         language = language.upper()
         if language not in EXT_PATTERN.keys():
             raise ValueError(f"Unsupported language for document preprocessing: {language}")
+        return language
 
-        # Load documents from the given files path
-        documents = self._load_documents(path, language)
-        # get text splitter
-        splitter = self._get_splitter(language, chunk_size, chunk_overlap)
-        # Chunk documents
-        chunks = self._chunk_documents(documents, splitter)
-        return chunks
+    def _load_documents_from_text(self, texts: str) -> List[DocumentFile]:
+        doc_files = [
+            DocumentFile(path=f"input_text_{idx}", content=text)
+            for idx, text in enumerate(texts)
+        ]
+        logger.info(f"{len(doc_files)} text document loaded")
+        return doc_files
 
-    def _load_documents(self, path: str, language: str = None) -> List[DocumentFile]:
+    def _load_documents_from_path(self, path: str, language: str = None) -> List[DocumentFile]:
         root = Path(path)
         doc_files: List[DocumentFile] = []
 
@@ -75,22 +108,19 @@ class DocumentPreprocessingAdapter:
     def _get_splitter(
         self,
         language: str = None,
-        chunk_size: int = 800,
-        chunk_overlap: int = 200,
     ) -> RecursiveCharacterTextSplitter:
         """
         Get text splitter based on language
         """
+        chunk_kwargs = CHUNK_OPTS[language]
         if language == "DOCUMENT":
             return RecursiveCharacterTextSplitter(
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
+                **chunk_kwargs
             )
 
         splitter = RecursiveCharacterTextSplitter.from_language(
             language=getattr(Language, language),
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
+            **chunk_kwargs
         )
 
         return splitter

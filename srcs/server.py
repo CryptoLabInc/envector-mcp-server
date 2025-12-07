@@ -190,15 +190,16 @@ class MCPServerApp:
 
             return self.envector.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
-        # ---------- MCP Tools: Insert ---------- #
+        # ---------- MCP Tools: Insert Documents from Path ---------- #
         @self.mcp.tool(
-            name="insert_documents",
+            name="insert_documents_from_path",
             description=(
                 "Insert documents using enVector SDK. "
-                "Read document in a directory, preprocess and chunk them, then embed and insert into enVector. "
+                "This tool read document in a directory, preprocess and chunk them, then embed and insert into enVector. "
+                "This tool requires a path of documents to read and insert"
             )
         )
-        async def tool_insert_documents(
+        async def tool_insert_documents_from_path(
             index_name: Annotated[str, Field(description="index name to insert data into")],
             document_path: Annotated[Union[Any, List[Any]], Field(description="documents path to insert")] = None
         ) -> Dict[str, Any]:
@@ -206,7 +207,30 @@ class MCPServerApp:
             MCP tool to perform insert of documents using the enVector SDK adapter.
 
             """
-            chunk_docs = self.preprocessor.preprocess_documents(path=document_path)
+            chunk_docs = self.preprocessor.preprocess_documents_from_path(path=document_path)
+            text = [chunk["text"] for chunk in chunk_docs]
+            metadata = [json.dumps(chunk) for chunk in chunk_docs]
+            vectors = self.embedding.get_embedding(text)
+            return self.envector.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
+
+        # ---------- MCP Tools: Insert Documents from Texts ---------- #
+        @self.mcp.tool(
+            name="insert_documents_from_text",
+            description=(
+                "Insert documents using enVector SDK. "
+                "This tool read document in a directory, preprocess and chunk them, then embed and insert into enVector. "
+                "This tool requires a list of text documents loaded by LLMs to read and insert"
+            )
+        )
+        async def tool_insert_documents_from_text(
+            index_name: Annotated[str, Field(description="index name to insert data into")],
+            document_path: Annotated[Union[Any, List[Any]], Field(description="documents path to insert")] = None
+        ) -> Dict[str, Any]:
+            """
+            MCP tool to perform insert of documents using the enVector SDK adapter.
+
+            """
+            chunk_docs = self.preprocessor.preprocess_document_from_text(texts=document_path)
             text = [chunk["text"] for chunk in chunk_docs]
             metadata = [json.dumps(chunk) for chunk in chunk_docs]
             vectors = self.embedding.get_embedding(text)
