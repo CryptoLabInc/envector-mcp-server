@@ -384,7 +384,7 @@ if __name__ == "__main__":
         help="Encrypt the query vectors."
     )
     parser.add_argument(
-         "--envector-cloud-access-token",
+        "--envector-cloud-access-token",
         default=os.getenv("ENVECTOR_CLOUD_ACCESS_TOKEN", None),
         help="enVector cloud access token."
     )
