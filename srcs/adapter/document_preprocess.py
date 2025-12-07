@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Dict, Any, List
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter, Language
+from pypdf import PdfReader
 
 from logging import getLogger
 logger = getLogger(__name__)
@@ -88,18 +89,30 @@ class DocumentPreprocessingAdapter:
 
         patterns = EXT_PATTERN[language]
 
-        for pattern in patterns:
-            for path in root.glob(pattern):
-                if any(part.startswith(".") for part in path.parts):
-                    continue
+        if root.endswith(".pdf"):
+            reader = PdfReader(str(root))
+            doc_files = []
 
+            for i, page in enumerate(reader.pages):
                 try:
-                    text = path.read_text(encoding="utf-8")
-                except UnicodeDecodeError:
-                    text = path.read_text(encoding="utf-8", errors="ignore")
+                    text = page.extract_text() or ""
+                except Exception as e:
+                    text = f"[Error reading page {i}: {e}]"
+                doc_files.append(DocumentFile(path=f"{root.name}::page-{i}", content=text))
 
-                rel_path = str(path.relative_to(root))
-                doc_files.append(DocumentFile(path=rel_path, content=text))
+        else:
+            for pattern in patterns:
+                for path in root.glob(pattern):
+                    if any(part.startswith(".") for part in path.parts):
+                        continue
+
+                    try:
+                        text = path.read_text(encoding="utf-8")
+                    except UnicodeDecodeError:
+                        text = path.read_text(encoding="utf-8", errors="ignore")
+
+                    rel_path = str(path.relative_to(root))
+                    doc_files.append(DocumentFile(path=rel_path, content=text))
 
         logger.info(f"{len(doc_files)} python files loaded")
 
