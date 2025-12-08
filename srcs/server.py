@@ -353,7 +353,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--embedding-model",
-        default=os.getenv("ENVECTOR_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
+        default=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
         help="Embedding model name for enVector.",
     )
     args = parser.parse_args()

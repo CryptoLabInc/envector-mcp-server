@@ -145,7 +145,7 @@ ENVECTOR_ENCRYPTED_QUERY="false"
 
 # Embedding mode
 EMBEDDING_MODE="hf"
-ENVECTOR_EMBEDDING_MODEL="sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL="sentence-transformers/all-MiniLM-L6-v2"
 ```
 
 
