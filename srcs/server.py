@@ -370,7 +370,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--envector-key-path",
-        default=os.getenv("ENVECTOR_KEY_PATH", None),
+        default=os.getenv("ENVECTOR_KEY_PATH", os.path.join(CURRENT_DIR, "keys")),
         help="Path to the enVector key file.",
     )
     parser.add_argument(

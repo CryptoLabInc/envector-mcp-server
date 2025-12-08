@@ -2,7 +2,8 @@
 
 from typing import Union, List, Dict, Any
 import numpy as np
-import pyenvector as ev
+import pyenvector as ev  # pip install pyenvector
+from pyenvector.crypto.block import CipherBlock
 
 from pathlib import Path
 
