@@ -2,8 +2,8 @@
 
 from typing import Union, List, Dict, Any
 import numpy as np
-import es2  # pip install es2
-from es2.crypto.block import CipherBlock
+import pyenvector as ev  # pip install pyenvector
+from pyenvector.crypto.block import CipherBlock
 
 from pathlib import Path
 
@@ -33,7 +33,7 @@ class EnVectorSDKAdapter:
         if not key_path:
             key_path = str(KEY_PATH)
         self.query_encryption = query_encryption
-        es2.init(address=address, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True, access_token=access_token)
+        ev.init(address=address, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True, access_token=access_token)
 
     #------------------- Create Index ------------------#
 
@@ -72,9 +72,9 @@ class EnVectorSDKAdapter:
         """
         # Return the created index instance
         if self.query_encryption:
-            return es2.create_index(index_name=index_name, dim=dim, index_params=index_params, query_encryption="cipher")
+            return ev.create_index(index_name=index_name, dim=dim, index_params=index_params, query_encryption="cipher")
         else:
-            return es2.create_index(index_name=index_name, dim=dim, index_params=index_params, query_encryption="plain")
+            return ev.create_index(index_name=index_name, dim=dim, index_params=index_params, query_encryption="plain")
 
     #--------------- Get Index List --------------#
     def call_get_index_list(self) -> Dict[str, Any]:
@@ -98,7 +98,7 @@ class EnVectorSDKAdapter:
         Returns:
             List[str]: List of index names from the enVector SDK.
         """
-        return es2.get_index_list()
+        return ev.get_index_list()
 
     #--------------- Get Index Info --------------#
     def call_get_index_info(self, index_name: str) -> Dict[str, Any]:
@@ -128,7 +128,7 @@ class EnVectorSDKAdapter:
         Returns:
             Dict[str, Any]: Index information from the enVector SDK.
         """
-        return es2.get_index_info(index_name=index_name)
+        return ev.get_index_info(index_name=index_name)
 
     #------------------- Insert ------------------#
 
@@ -162,7 +162,7 @@ class EnVectorSDKAdapter:
         Returns:
             Any: Raw insert results from the enVector SDK.
         """
-        index = es2.Index(index_name)  # Create an index instance with the given index name
+        index = ev.Index(index_name)  # Create an index instance with the given index name
         # Insert vectors with optional metadata
         return index.insert(data=vectors, metadata=metadata) # Return list of inserted vectors' IDs
 
@@ -199,7 +199,7 @@ class EnVectorSDKAdapter:
         Returns:
             Any: Raw search results from the enVector SDK.
         """
-        index = es2.Index(index_name)  # Create an index instance with the given index name
+        index = ev.Index(index_name)  # Create an index instance with the given index name
         # Search with the provided query and topk. Fixed output_fields parameter for now.
         return index.search(query, top_k=topk, output_fields=["metadata"])
 
