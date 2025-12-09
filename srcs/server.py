@@ -32,10 +32,7 @@ if CURRENT_DIR not in sys.path:
 
 from fastmcp import FastMCP  # pip install fastmcp
 from fastmcp.exceptions import ToolError
-from adapter.envector_sdk import EnVectorSDKAdapter
-
-if TYPE_CHECKING:
-    from adapter.embeddings import EmbeddingAdapter
+from adapter import EnVectorSDKAdapter, EmbeddingAdapter, DocumentPreprocessingAdapter
 
 # # For Health Check (Starlette Imports -> Included in FastMCP as dependency)
 # from starlette.requests import Request
@@ -48,8 +45,9 @@ class MCPServerApp:
     def __init__(
             self,
             envector_adapter: EnVectorSDKAdapter,
-            embedding_adapter: "EmbeddingAdapter" = None,
             mcp_server_name: str = "envector_mcp_server",
+            embedding_adapter: "EmbeddingAdapter" = None,
+            document_preprocessor: DocumentPreprocessingAdapter = None,
         ) -> None:
         """
         Initializes the MCPServerApp with the given adapter and server name.
@@ -57,8 +55,11 @@ class MCPServerApp:
             adapter (EnVectorSDKAdapter): The enVector SDK adapter instance.
             mcp_server_name (str): The name of the MCP server.
         """
+        # adapters
         self.envector = envector_adapter
         self.embedding = embedding_adapter
+        self.preprocessor = document_preprocessor
+        # mcp
         self.mcp = FastMCP(name=mcp_server_name)
 
         # # ---------- Health Check Route ---------- #
@@ -174,7 +175,7 @@ class MCPServerApp:
                         # If parsing fails, raise an error
                         raise ValueError("Invalid format has used or failed to parse JSON for `vectors` parameter. Caused by: " + vectors)
 
-            if metadata is not None:
+            elif metadata is not None:
                 # Instance normalization for metadata
                 if not isinstance(metadata, list):
                     if isinstance(metadata, str):
@@ -191,6 +192,53 @@ class MCPServerApp:
                 if vectors is None and self.embedding is not None:
                     vectors = self.embedding.get_embedding(metadata)
 
+            return self.envector.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
+
+        # ---------- MCP Tools: Insert Documents from Path ---------- #
+        @self.mcp.tool(
+            name="insert_documents_from_path",
+            description=(
+                "Insert documents using enVector SDK. "
+                "This tool read document in a directory, preprocess and chunk them, then embed and insert into enVector. "
+                "This tool requires a path of documents to read and insert"
+            )
+        )
+        async def tool_insert_documents_from_path(
+            index_name: Annotated[str, Field(description="index name to insert data into")],
+            document_path: Annotated[Union[Any, List[Any]], Field(description="documents path to insert")] = None,
+            language: Annotated[Optional[str], Field(description="language of the documents for preprocessing and chunking")] = "DOCUMENT",
+        ) -> Dict[str, Any]:
+            """
+            MCP tool to perform insert of documents using the enVector SDK adapter.
+
+            """
+            chunk_docs = self.preprocessor.preprocess_documents_from_path(path=document_path, language=language)
+            text = [chunk["text"] for chunk in chunk_docs]
+            metadata = [json.dumps(chunk) for chunk in chunk_docs]
+            vectors = self.embedding.get_embedding(text)
+            return self.envector.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
+
+        # ---------- MCP Tools: Insert Documents from Texts ---------- #
+        @self.mcp.tool(
+            name="insert_documents_from_text",
+            description=(
+                "Insert documents using enVector SDK. "
+                "This tool read document in a directory, preprocess and chunk them, then embed and insert into enVector. "
+                "This tool requires a list of text documents loaded by LLMs to read and insert"
+            )
+        )
+        async def tool_insert_documents_from_text(
+            index_name: Annotated[str, Field(description="index name to insert data into")],
+            texts: Annotated[Union[Any, List[Any]], Field(description="document text to insert")] = None,
+        ) -> Dict[str, Any]:
+            """
+            MCP tool to perform insert of documents using the enVector SDK adapter.
+
+            """
+            chunk_docs = self.preprocessor.preprocess_document_from_text(texts=texts)
+            text = [chunk["text"] for chunk in chunk_docs]
+            metadata = [json.dumps(chunk) for chunk in chunk_docs]
+            vectors = self.embedding.get_embedding(text)
             return self.envector.call_insert(index_name=index_name, vectors=vectors, metadata=metadata)
 
         # ---------- MCP Tools: Search ---------- #
@@ -411,10 +459,13 @@ if __name__ == "__main__":
         # print("[WARN] No embedding model specified. Proceeding without embedding adapter.")
         embedding_adapter = None
 
+    document_preprocessor = DocumentPreprocessingAdapter()
+
     app = MCPServerApp(
         mcp_server_name=MCP_SERVER_NAME,
         envector_adapter=envector_adapter,
         embedding_adapter=embedding_adapter,
+        document_preprocessor=document_preprocessor,
     )
 
     def _handle_shutdown(signum, frame):
@@ -424,6 +475,7 @@ if __name__ == "__main__":
     for sig in (signal.SIGINT, getattr(signal, "SIGTERM", None)):
         if sig is not None:
             signal.signal(sig, _handle_shutdown)
+
     if run_mode == "stdio":
         app.run_stdio_service()
     elif run_mode == "http":
