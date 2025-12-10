@@ -20,6 +20,9 @@ import numpy as np
 import os, sys, signal
 import json
 from pydantic import Field
+# load environment variables from .env file if present
+from dotenv import load_dotenv
+load_dotenv()
 
 # Ensure current directory is in sys.path for module imports
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -381,6 +384,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--encrypted-query",
         action="store_true",
+        default=os.getenv("ENVECTOR_ENCRYPTED_QUERY", "false").lower() in ("true", "1", "yes"),
         help="Encrypt the query vectors."
     )
     parser.add_argument(
@@ -390,13 +394,13 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--embedding-mode",
-        default="hf",
+        default=os.getenv("EMBEDDING_MODE", "hf"),
         choices=("sbert", "hf", "openai"),
         help="Embedding model name for enVector. 'sbert' for SBERT, 'hf' for HuggingFace, 'openai' for OpenAI API.",
     )
     parser.add_argument(
         "--embedding-model",
-        default="sentence-transformers/all-MiniLM-L6-v2",
+        default=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
         help="Embedding model name for enVector.",
     )
     args = parser.parse_args()

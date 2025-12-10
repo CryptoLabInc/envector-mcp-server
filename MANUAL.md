@@ -27,13 +27,9 @@ MANUAL.md                   # User Manual
 
 - Environment Variable Set-Up
 
-    1. Use `.env` file
+    1. Use `.env` file to set environmental variables
 
-        ```bash
-        source .env
-        ```
-
-    2. CLI overrides (Recommended)
+    2. CLI Options
 
         Every setting has default value, but, you can check option with `python srcs/server.py --help` and overwrite each value with CLI.
 
@@ -97,6 +93,60 @@ python srcs/server.py \
 
 Note that,
 - `stdio` mode communicate with standard I/O only, so log might not be seen. Please connect to MCP Host.
+
+## MCP Server Options
+
+### CLI Options
+
+Arguments to run Python scripts:
+
+- 💻 MCP execution
+    - `--mode`: MCP execution mode, supporting `http` (default) and `stdio` transports.
+    - `--host`: MCP HTTP bind host. The default is `127.0.0.1`.
+    - `--port`: MCP HTTP bind port. The default is `8000`.
+    - `--address`: MCP HTTP bind address. Overrides `--host` and `--port` if provided.
+    - `--server-name`: MCP server name. The default is `envector_mcp_server`.
+
+- 🔌 enVector connection
+    - `--envector-address`: enVector endpoint address (`{host}:{port}` or enVector Cloud endpoint ends with `.clusters.envector.io`).
+    - `--envector-cloud-access-token`: access token of enVector Cloud.
+
+- 🔑 enVector options
+    - `--envector-key-id`: enVector key id (identifier).
+    - `--envector-key-path`: path to enVector key files.
+    - `--envector-eval-mode`: enVector FHE evaluation mode. Recommend to use `rmp` (default) mode for more flexible usage.
+    - `--encrypted-query`: whether to encrypt the query vectors. The index is encrypted by default.
+
+    > ⚠️ **Note**: MCP server holds the key for homomorphic encryption as MCP server is a enVector Client.
+
+- ⚙️ Embedding options
+    - `--embedding-mode`: Mode of the embedding model. Supports `hf` (huggingface), `sbert` (SBERT; sentence-transformers), and `openai` (OpenAI API). For `openai`, required to set environmental variable `OPENAI_API_KEY`.
+    - `--embedding-model`: Embedding model name to use enVector. The `sentence-transformers/all-MiniLM-L6-v2` set as default, which dimension is 384.
+
+### Use environment variables
+
+Copy `.env.example` to `.env` and configure `.env` as you want.
+
+```bash
+# MCP execution
+MCP_SERVER_MODE="http"
+MCP_SERVER_ADDRESS="127.0.0.1:8000"
+MCP_SERVER_NAME="envector_mcp_server"
+
+# enVector connection
+ENVECTOR_ADDRESS="localhost:50050"
+ENVECTOR_CLOUD_ACCESS_TOKEN=""
+
+# enVector options
+ENVECTOR_KEY_ID="mcp_key"
+ENVECTOR_KEY_PATH="./keys"
+ENVECTOR_EVAL_MODE="rmp"
+ENVECTOR_ENCRYPTED_QUERY="false"
+
+# Embedding mode
+EMBEDDING_MODE="hf"
+EMBEDDING_MODEL="sentence-transformers/all-MiniLM-L6-v2"
+```
 
 
 ## Connect MCP Server (Client)
@@ -216,6 +266,7 @@ Basic format is `JSON-RPC 2.0`
             }
         }'
     ```
+
 
 ## Fast Trouble Shooting
 ### Error List
