@@ -28,7 +28,7 @@ This document let users know how to use `enVector MCP Server`
 - `insert_documents_from_path`: Insert documents from the given path. Support to read and chunk the document file, get embedding of texts and insert them into enVector.
 - `insert_documents_from_text`: Insert documents from the given texts. Support to chunk the document file, get embedding of texts and insert them into enVector.
 
-## Prerequisities
+## Prerequisites
 - Python 3.10+ (3.12 recommended)
 
     ```bash
