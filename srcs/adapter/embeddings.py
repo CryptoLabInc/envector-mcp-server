@@ -66,7 +66,8 @@ class FastEmbedSDKAdapter:
         """
         Retrieves the embedding for the given text using FastEmbed SDK.
         """
-        return self.model.embed(texts)
+        embeddings = list(self.model.embed(texts))
+        return embeddings
 
 
 class SBERTSDKAdapter:
