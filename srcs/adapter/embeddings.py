@@ -40,8 +40,11 @@ class EmbeddingAdapter:
         return embeddings.tolist()
 
     def _normalize_embeddings(self, embeddings: np.ndarray) -> np.ndarray:
-        # l2 normalize
-        embeddings /= np.linalg.norm(embeddings, axis=1, keepdims=True)
+        # l2 normalize and guard against zero vectors
+        norm = np.linalg.norm(embeddings, axis=1, keepdims=True)
+        epsilon = 1e-12
+        norm = np.maximum(norm, epsilon)
+        embeddings = embeddings / norm
         return embeddings
 
 
