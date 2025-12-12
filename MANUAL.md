@@ -17,8 +17,24 @@ README.md                   # Introduction of `enVector MCP Server` GitHub repos
 MANUAL.md                   # User Manual
 ```
 
-## Basic requirements
+## Supporting Tools
+
+- `get_index_list`: Get the list of indexes in enVector.
+- `get_index_info`: Get information about a specific index in enVector.
+- `create_index`: Create an index in enVector.
+- `insert`: Insert vectors and the corresponding metadata into enVector index. Support to specify embedding model to get embedding vectors to insert.
+- `search`: Perform vector search and Retrieve Metadata from enVector. Support to specify embedding model to get embedding vectors to search.
+- `insert_documents_from_path`: Insert documents from the given path. Support to read and chunk the document file, get embedding of texts and insert them into enVector.
+- `insert_documents_from_text`: Insert documents from the given texts. Support to chunk the document file, get embedding of texts and insert them into enVector.
+
+## Prerequisities
 - Python 3.10+ (3.12 recommended)
+
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
+
 - Python Packages
 
     ```bash
@@ -122,6 +138,16 @@ Arguments to run Python scripts:
 - ⚙️ Embedding options
     - `--embedding-mode`: Mode of the embedding model. Supports `hf` (huggingface), `sbert` (SBERT; sentence-transformers), and `openai` (OpenAI API). For `openai`, required to set environmental variable `OPENAI_API_KEY`.
     - `--embedding-model`: Embedding model name to use enVector. The `sentence-transformers/all-MiniLM-L6-v2` set as default, which dimension is 384.
+
+<details>
+<summary>Supporting embedding models</summary>
+
+    - models supported by [`FastEmbed`](https://qdrant.github.io/fastembed/examples/Supported_Models/#supported-text-embedding-models)
+    - models supported by `transformers`
+    - models supported by `sentence-transformers`
+    - models supported by `openai`
+
+</details>
 
 ### Use environment variables
 

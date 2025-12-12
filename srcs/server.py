@@ -394,9 +394,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--embedding-mode",
-        default=os.getenv("EMBEDDING_MODE", "hf"),
-        choices=("sbert", "hf", "openai"),
-        help="Embedding model name for enVector. 'sbert' for SBERT, 'hf' for HuggingFace, 'openai' for OpenAI API.",
+        default=os.getenv("EMBEDDING_MODE", "femb"),
+        choices=("femb", "sbert", "hf", "openai"),
+        help="Embedding model name for enVector. 'femb' for FastEmbed (by default), 'sbert' for SBERT, 'hf' for HuggingFace, 'openai' for OpenAI API.",
     )
     parser.add_argument(
         "--embedding-model",
