@@ -132,7 +132,7 @@ class MCPServerApp:
 
         # ---------- MCP Tools: Insert ---------- #
         @self.mcp.tool(
-            name="insert",
+            name="insert_with_vectors",
             description=(
                 "Insert vectors or metadata using enVector SDK. "
                 "Allowing to insert metadata as text only as supporting embedding the metadata as vectors. "
