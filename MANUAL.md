@@ -4,17 +4,18 @@ This document let users know how to use `enVector MCP Server`
 
 ## Repository Structure (Essentials Only)
 ```bash
-srcs/
- ├─ server.py               # MCP Server entrypoint (HTTP/STDIO modes)
- └─ adapters/
-     └─ enVector_sdk.py     # `enVector` SDK Adapter (Class)
-examples/
- └─ ...                     # Example Codes
-tests/
- └─ ...                     # Test Codes (pyTest)
-requirements.txt            # List of Required Package
-README.md                   # Introduction of `enVector MCP Server` GitHub repository
-MANUAL.md                   # User Manual
+├── MANUAL.md                       # User Manual
+├── README.md                       # Introduction of enVector MCP Server
+├── requirements.txt                # Required Python Package
+├── srcs
+│   ├── adapter
+│   │   ├── __init__.py
+│   │   ├── document_preprocess.py  # Document Preprocessor for loading and chunking
+│   │   ├── embeddings.py           # Embedding Model
+│   │   └── envector_sdk.py         # `enVector` SDK Adapter (Class)
+│   └── server.py                   # MCP Server entrypoint (HTTP/STDIO modes)
+└── tests                           # Test Codes (pyTest)
+    └── test_server.py
 ```
 
 ## Supporting Tools
@@ -77,13 +78,11 @@ Configurate your config files (e.g. `/path/to/Claude/claude_desktop_config.json`
             "cwd": "/path/to/envector-mcp-server",
             "description": "enVector MCP server stores the user's vector data and their corresponding metadata for semantic search."
         },
-        ...
     }
 }
 ```
 
-Note that,
-- some AI service providers including Claude Desktop have an option that 1) run the MCP server in the service, and 2) connect the running MCP server.
+Note that, some AI service providers including Claude Desktop have an option that 1) run the MCP server in the service, and 2) connect the running MCP server.
 
 ### 2. How to run MCP Server directly
 
