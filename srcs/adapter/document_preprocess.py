@@ -74,7 +74,7 @@ class DocumentPreprocessingAdapter:
             raise ValueError(f"Unsupported language for document preprocessing: {language}")
         return language
 
-    def _load_documents_from_text(self, texts: str) -> List[DocumentFile]:
+    def _load_documents_from_text(self, texts: List[str]) -> List[DocumentFile]:
         doc_files = [
             DocumentFile(path=f"input_text_{idx}", content=text)
             for idx, text in enumerate(texts)

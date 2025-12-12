@@ -134,7 +134,8 @@ class MCPServerApp:
         @self.mcp.tool(
             name="insert",
             description=(
-                "Insert vectors using enVector SDK. "
+                "Insert vectors or metadata using enVector SDK. "
+                "Allowing to insert metadata as text only as supporting embedding the metadata as vectors. "
                 "Allowing one or more vectors, but insert 'batch_size' vectors in once would be more efficient. "
             )
         )
@@ -197,7 +198,7 @@ class MCPServerApp:
         @self.mcp.tool(
             name="insert_documents_from_path",
             description=(
-                "Insert documents using enVector SDK. "
+                "Insert long documents from the given path using enVector SDK. "
                 "This tool read document in a directory, preprocess and chunk them, then embed and insert into enVector. "
                 "This tool requires a path of documents to read and insert"
             )
@@ -209,7 +210,6 @@ class MCPServerApp:
         ) -> Dict[str, Any]:
             """
             MCP tool to perform insert of documents using the enVector SDK adapter.
-
             """
             chunk_docs = self.preprocessor.preprocess_documents_from_path(path=document_path, language=language)
             text = [chunk["text"] for chunk in chunk_docs]
@@ -221,7 +221,7 @@ class MCPServerApp:
         @self.mcp.tool(
             name="insert_documents_from_text",
             description=(
-                "Insert documents using enVector SDK. "
+                "Insert long documents from the given texts using enVector SDK. "
                 "This tool read document in a directory, preprocess and chunk them, then embed and insert into enVector. "
                 "This tool requires a list of text documents loaded by LLMs to read and insert"
             )
@@ -394,9 +394,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--embedding-mode",
-        default=os.getenv("EMBEDDING_MODE", "hf"),
-        choices=("sbert", "hf", "openai"),
-        help="Embedding model name for enVector. 'sbert' for SBERT, 'hf' for HuggingFace, 'openai' for OpenAI API.",
+        default=os.getenv("EMBEDDING_MODE", "femb"),
+        choices=("femb", "sbert", "hf", "openai"),
+        help="Embedding model name for enVector. 'femb' for FastEmbed (by default), 'sbert' for SBERT, 'hf' for HuggingFace, 'openai' for OpenAI API.",
     )
     parser.add_argument(
         "--embedding-model",
