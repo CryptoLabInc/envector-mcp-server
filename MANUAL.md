@@ -98,7 +98,7 @@ python srcs/server.py \
     --envector-address "ENVECTORHOST:50050" \
     --envector-key-id "mcp_key" \
     --envector-key-path "/path/to/keys" \
-    --embedding-mode "hf" \
+    --embedding-mode "femb" \
     --embedding-model "sentence-transformers/all-MiniLM-L6-v2"
 
 # Local STDIO mode (for MCP desktop integrations)
@@ -135,16 +135,16 @@ Arguments to run Python scripts:
     > ⚠️ **Note**: MCP server holds the key for homomorphic encryption as MCP server is a enVector Client.
 
 - ⚙️ Embedding options
-    - `--embedding-mode`: Mode of the embedding model. Supports `hf` (huggingface), `sbert` (SBERT; sentence-transformers), and `openai` (OpenAI API). For `openai`, required to set environmental variable `OPENAI_API_KEY`.
+    - `--embedding-mode`: Mode of the embedding model. Supports `femb` (FastEmb), `hf` (huggingface), `sbert` (SBERT; sentence-transformers), and `openai` (OpenAI API). For `openai`, required to set environmental variable `OPENAI_API_KEY`.
     - `--embedding-model`: Embedding model name to use enVector. The `sentence-transformers/all-MiniLM-L6-v2` set as default, which dimension is 384.
 
 <details>
 <summary>Supporting embedding models</summary>
 
-    - models supported by [`FastEmbed`](https://qdrant.github.io/fastembed/examples/Supported_Models/#supported-text-embedding-models)
-    - models supported by `transformers`
-    - models supported by `sentence-transformers`
-    - models supported by `openai`
+- models supported by [`fastembed`](https://qdrant.github.io/fastembed/examples/Supported_Models/#supported-text-embedding-models)
+- models supported by [`transformers`](https://huggingface.co/models?pipeline_tag=sentence-similarity&library=transformers&sort=trending)
+- models supported by [`sentence-transformers`](https://www.sbert.net/docs/sentence_transformer/pretrained_models.html)
+- models supported by [`openai`](https://platform.openai.com/docs/guides/embeddings)
 
 </details>
 
@@ -169,7 +169,7 @@ ENVECTOR_EVAL_MODE="rmp"
 ENVECTOR_ENCRYPTED_QUERY="false"
 
 # Embedding mode
-EMBEDDING_MODE="hf"
+EMBEDDING_MODE="femb"
 EMBEDDING_MODEL="sentence-transformers/all-MiniLM-L6-v2"
 ```
 
@@ -190,9 +190,7 @@ For example, in Gemini CLI, configurate `.gemini/settings.json` to connect the r
             "httpUrl": "http://localhost:8000/mcp",
             "description": "enVector MCP server stores the user's vector data and their corresponding metadata for semantic search."
         },
-        ...
     ],
-    ...
 }
 ```
 
