@@ -11,7 +11,9 @@ class EmbeddingAdapter:
         self.mode = mode
         self.model_name = model_name
 
-        if mode in ["sbert", "sentence_transformer"]:
+        if mode in ["fastembed", "femb"]:
+            self.adapter = FastEmbedSDKAdapter(model_name)
+        elif mode in ["sbert", "sentence_transformer"]:
             self.adapter = SBERTSDKAdapter(model_name)
         elif mode in ["huggingface", "hf"]:
             self.adapter = HuggingFaceSDKAdapter(model_name)
@@ -20,8 +22,55 @@ class EmbeddingAdapter:
         else:
             raise ValueError(f"Unsupported embedding mode: {mode}")
 
-    def get_embedding(self, texts: List[str]) -> np.ndarray:
-        return self.adapter.get_embedding(texts)
+    def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]], np.ndarray]:
+        """
+        Retrieves embeddings for a list of texts using the specified SDK.
+
+        Args:
+            texts (List[str]): A list of texts to embed.
+
+        Returns:
+            np.ndarray: List of embeddings where each row corresponds to the embedding of a text
+        """
+        embeddings = self.adapter.get_embedding(texts)
+
+        # l2 normalize
+        embeddings = self._normalize_embeddings(np.array(embeddings))
+        assert embeddings.shape[0] == len(texts)
+        return embeddings.tolist()
+
+    def _normalize_embeddings(self, embeddings: np.ndarray) -> np.ndarray:
+        # l2 normalize and guard against zero vectors
+        norm = np.linalg.norm(embeddings, axis=1, keepdims=True)
+        epsilon = 1e-12
+        norm = np.maximum(norm, epsilon)
+        embeddings = embeddings / norm
+        return embeddings
+
+
+class FastEmbedSDKAdapter:
+    """
+    Adapter for FastEmbed SDK interactions.
+    """
+    def __init__(self, model_name: str = "fastembed/fastembed-base") -> None:
+        """
+        Initializes the FastEmbedSDKAdapter with the provided model name.
+
+        Args:
+            model_name (str): The name of the FastEmbed model to use.
+        """
+
+        from fastembed import TextEmbedding
+
+        self.model = TextEmbedding(model_name)
+
+
+    def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]], np.ndarray]:
+        """
+        Retrieves the embedding for the given text using FastEmbed SDK.
+        """
+        embeddings = list(self.model.embed(texts))
+        return embeddings
 
 
 class SBERTSDKAdapter:
@@ -41,25 +90,11 @@ class SBERTSDKAdapter:
         self.model = SentenceTransformer(model_name, trust_remote_code=True)
 
 
-    def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]]]:
+    def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]], np.ndarray]:
         """
         Retrieves the embedding for the given text using Sentence Transformer SDK.
-
-        Args:
-            text (str): The input text to get the embedding vector.
-
-        Returns:
-            List[float]: The embedding vector for the input text.
         """
-        # text embeddings
-        embeddings = self.model.encode(texts)
-
-        # l2 normalize
-        embeddings /= np.linalg.norm(embeddings, axis=1, keepdims=True)  # normalize for IP
-
-        assert embeddings.shape[0] == len(texts)
-
-        return embeddings.tolist()
+        return self.model.encode(texts)
 
 
 class HuggingFaceSDKAdapter(EmbeddingAdapter):
@@ -80,16 +115,9 @@ class HuggingFaceSDKAdapter(EmbeddingAdapter):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
         self.model = AutoModel.from_pretrained(model_name, cache_dir=cache_dir)
 
-
-    def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]]]:
+    def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]], np.ndarray]:
         """
         Retrieves the embedding for the given text using HuggingFace SDK.
-
-        Args:
-            text (str): The input text to get the embedding vector.
-
-        Returns:
-            List[float]: The embedding vector for the input text.
         """
         for text in texts:
             # Tokenize sentences
@@ -98,10 +126,7 @@ class HuggingFaceSDKAdapter(EmbeddingAdapter):
         # Compute token embeddings
         embeddings = self.model(**encoded_input).last_hidden_state[:,0,:]
 
-        # l2 normalize
-        embeddings /= np.linalg.norm(embeddings.numpy(), axis=1, keepdims=True)  # normalize for IP
-
-        return embeddings
+        return embeddings.detach().numpy()
 
 
 class OpenAISDKAdapter:
@@ -121,9 +146,7 @@ class OpenAISDKAdapter:
         self.model_name = model_name
         self.client = openai.OpenAI()
 
-        # print(f"OpenAI model '{model_name}' loaded.")
-
-    def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]]]:
+    def get_embedding(self, texts: List[str]) -> Union[List[float], List[List[float]], np.ndarray]:
         """
         Retrieves embeddings for a list of texts using OpenAI API.
         """
@@ -132,5 +155,5 @@ class OpenAISDKAdapter:
             model=self.model_name,
             encoding_format="float",
         )
-        outputs = [e.embedding for e in response.data]
+        outputs = np.array([e.embedding for e in response.data])
         return outputs

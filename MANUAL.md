@@ -4,21 +4,38 @@ This document let users know how to use `enVector MCP Server`
 
 ## Repository Structure (Essentials Only)
 ```bash
-srcs/
- ├─ server.py               # MCP Server entrypoint (HTTP/STDIO modes)
- └─ adapters/
-     └─ enVector_sdk.py     # `enVector` SDK Adapter (Class)
-examples/
- └─ ...                     # Example Codes
-tests/
- └─ ...                     # Test Codes (pyTest)
-requirements.txt            # List of Required Package
-README.md                   # Introduction of `enVector MCP Server` GitHub repository
-MANUAL.md                   # User Manual
+├── MANUAL.md                       # User Manual
+├── README.md                       # Introduction of enVector MCP Server
+├── requirements.txt                # Required Python Package
+├── srcs
+│   ├── adapter
+│   │   ├── __init__.py
+│   │   ├── document_preprocess.py  # Document Preprocessor for loading and chunking
+│   │   ├── embeddings.py           # Embedding Model
+│   │   └── envector_sdk.py         # `enVector` SDK Adapter (Class)
+│   └── server.py                   # MCP Server entrypoint (HTTP/STDIO modes)
+└── tests                           # Test Codes (pyTest)
+    └── test_server.py
 ```
 
-## Basic requirements
+## Supporting Tools
+
+- `get_index_list`: Get the list of indexes in enVector.
+- `get_index_info`: Get information about a specific index in enVector.
+- `create_index`: Create an index in enVector.
+- `insert`: Insert vectors and the corresponding metadata into enVector index. Support to specify embedding model to get embedding vectors to insert.
+- `search`: Perform vector search and Retrieve Metadata from enVector. Support to specify embedding model to get embedding vectors to search.
+- `insert_documents_from_path`: Insert documents from the given path. Support to read and chunk the document file, get embedding of texts and insert them into enVector.
+- `insert_documents_from_text`: Insert documents from the given texts. Support to chunk the document file, get embedding of texts and insert them into enVector.
+
+## Prerequisites
 - Python 3.10+ (3.12 recommended)
+
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
+
 - Python Packages
 
     ```bash
@@ -61,13 +78,11 @@ Configurate your config files (e.g. `/path/to/Claude/claude_desktop_config.json`
             "cwd": "/path/to/envector-mcp-server",
             "description": "enVector MCP server stores the user's vector data and their corresponding metadata for semantic search."
         },
-        ...
     }
 }
 ```
 
-Note that,
-- some AI service providers including Claude Desktop have an option that 1) run the MCP server in the service, and 2) connect the running MCP server.
+Note that, some AI service providers including Claude Desktop have an option that 1) run the MCP server in the service, and 2) connect the running MCP server.
 
 ### 2. How to run MCP Server directly
 
@@ -122,6 +137,16 @@ Arguments to run Python scripts:
 - ⚙️ Embedding options
     - `--embedding-mode`: Mode of the embedding model. Supports `hf` (huggingface), `sbert` (SBERT; sentence-transformers), and `openai` (OpenAI API). For `openai`, required to set environmental variable `OPENAI_API_KEY`.
     - `--embedding-model`: Embedding model name to use enVector. The `sentence-transformers/all-MiniLM-L6-v2` set as default, which dimension is 384.
+
+<details>
+<summary>Supporting embedding models</summary>
+
+    - models supported by [`FastEmbed`](https://qdrant.github.io/fastembed/examples/Supported_Models/#supported-text-embedding-models)
+    - models supported by `transformers`
+    - models supported by `sentence-transformers`
+    - models supported by `openai`
+
+</details>
 
 ### Use environment variables
 
