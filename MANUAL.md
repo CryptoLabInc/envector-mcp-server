@@ -131,8 +131,16 @@ Arguments to run Python scripts:
     - `--envector-key-path`: path to enVector key files.
     - `--envector-eval-mode`: enVector FHE evaluation mode. Recommend to use `rmp` (default) mode for more flexible usage.
     - `--encrypted-query`: whether to encrypt the query vectors. The index is encrypted by default.
+    - `--auto-key-setup`: automatically generate keys if not found (default: true).
+    - `--no-auto-key-setup`: disable automatic key generation. Use when keys are provided externally.
 
     > ⚠️ **Note**: MCP server holds the key for homomorphic encryption as MCP server is a enVector Client.
+
+- 🔐 Rune-Vault Integration (Optional)
+    - `--vault-endpoint`: Rune-Vault MCP endpoint URL for fetching public keys.
+    - `--vault-token`: Authentication token for Rune-Vault.
+
+    > 💡 **Rune Integration**: When integrated with Rune, the Vault MCP manages cryptographic keys centrally. The envector-mcp-server fetches public keys (EncKey, EvalKey) from Vault at startup, while SecKey remains securely in Vault for decryption operations. See [Rune Architecture](#rune-integration) for details.
 
 - ⚙️ Embedding options
     - `--embedding-mode`: Mode of the embedding model. Supports `femb` (FastEmb), `hf` (huggingface), `sbert` (SBERT; sentence-transformers), and `openai` (OpenAI API). For `openai`, required to set environmental variable `OPENAI_API_KEY`.
@@ -167,6 +175,11 @@ ENVECTOR_KEY_ID="mcp_key"
 ENVECTOR_KEY_PATH="./keys"
 ENVECTOR_EVAL_MODE="rmp"
 ENVECTOR_ENCRYPTED_QUERY="false"
+ENVECTOR_AUTO_KEY_SETUP="true"
+
+# Rune-Vault integration (optional)
+VAULT_MCP_ENDPOINT=""
+VAULT_TOKEN=""
 
 # Embedding mode
 EMBEDDING_MODE="femb"
@@ -300,3 +313,109 @@ Basic format is `JSON-RPC 2.0`
     + Is tool name correct?
 - Input type error:
     + Check TypeHint
+
+
+## Rune Integration
+
+When used with [Rune](https://github.com/CryptoLabInc/rune), the envector-mcp-server operates in a distributed key management architecture:
+
+### Architecture
+
+```
+┌───────────────────────────────────────────────────────────┐
+│                    Rune Architecture                      │
+└───────────────────────────────────────────────────────────┘
+
+                  ┌──────────────────────┐
+                  │   Rune-Vault MCP     │  ← Centralized
+                  │   (Decryption Only)  │    Key Management
+                  ├──────────────────────┤
+                  │ Holds: SecKey        │
+                  │ Exposes: EncKey,     │
+                  │   EvalKey (public)   │
+                  └──────────┬───────────┘
+                             │ Public Keys Distribution
+                             ▼
+        ┌──────────────────────────────────────────┐
+        │         envector-mcp-server(s)           │  ← Scalable
+        │         (Encryption + Search)            │     Workers
+        ├──────────────────────────────────────────┤
+        │ Uses: EncKey, EvalKey (from Vault)       │
+        │ Tools: create_index, insert, search      │
+        └──────────────────────┬───────────────────┘
+                               │
+                               ▼
+                  ┌──────────────────────┐
+                  │   enVector Cloud     │
+                  │   (Encrypted Storage)│
+                  └──────────────────────┘
+```
+
+### Configuration for Rune
+
+#### Option 1: Fetch keys from Rune-Vault at startup (Recommended)
+
+```bash
+python srcs/server.py \
+    --mode "http" \
+    --envector-address "envector-cloud.example.com:50050" \
+    --vault-endpoint "http://vault-mcp:50080/mcp" \
+    --vault-token "envector-team-alpha" \
+    --no-auto-key-setup
+```
+
+#### Option 2: Use pre-distributed keys
+
+```bash
+# Keys are pre-distributed to /shared/keys by Vault or deployment pipeline
+python srcs/server.py \
+    --mode "http" \
+    --envector-address "envector-cloud.example.com:50050" \
+    --envector-key-path "/shared/keys" \
+    --no-auto-key-setup
+```
+
+### Environment Variables for Rune
+
+```bash
+# Disable auto key generation
+ENVECTOR_AUTO_KEY_SETUP="false"
+
+# Vault integration (Option 1)
+VAULT_MCP_ENDPOINT="http://vault-mcp:50080/mcp"
+VAULT_TOKEN="envector-team-alpha"
+
+# Pre-distributed keys (Option 2)
+ENVECTOR_KEY_PATH="/shared/keys"
+```
+
+### Docker Compose Example
+
+```yaml
+services:
+  vault-mcp:
+    image: hiveminded/vault-mcp:latest
+    volumes:
+      - vault_keys:/secure/keys
+    ports:
+      - "127.0.0.1:50080:50080"
+
+  envector-mcp:
+    image: envector/mcp-server:latest
+    environment:
+      - VAULT_MCP_ENDPOINT=http://vault-mcp:50080/mcp
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - ENVECTOR_AUTO_KEY_SETUP=false
+      - ENVECTOR_ADDRESS=envector-cloud:50050
+    depends_on:
+      - vault-mcp
+```
+
+### Key Distribution Flow
+
+1. **Startup**: envector-mcp-server calls Vault's `get_public_key` tool
+2. **Key Fetch**: Vault returns EncKey.json, EvalKey.json, MetadataKey.json
+3. **Local Save**: Keys are saved to `--envector-key-path` directory
+4. **SDK Init**: pyenvector SDK initializes with fetched keys (`auto_key_setup=False`)
+5. **Operations**: Insert/Search operations use public keys for encryption
+6. **Decryption**: Results are decrypted by Vault using SecKey (never exposed)

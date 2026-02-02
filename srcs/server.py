@@ -29,9 +29,62 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path:
     sys.path.append(CURRENT_DIR)
 
-from fastmcp import FastMCP  # pip install fastmcp
+from fastmcp import FastMCP, Client  # pip install fastmcp
 from fastmcp.exceptions import ToolError
 from adapter import EnVectorSDKAdapter, EmbeddingAdapter, DocumentPreprocessingAdapter
+
+
+def fetch_keys_from_vault(vault_endpoint: str, vault_token: str, key_path: str) -> bool:
+    """
+    Fetches public keys (EncKey, EvalKey, MetadataKey) from Rune-Vault MCP.
+
+    Args:
+        vault_endpoint: Rune-Vault MCP endpoint URL (e.g., http://vault-mcp:50080/mcp)
+        vault_token: Authentication token for Vault
+        key_path: Local directory to save the fetched keys
+
+    Returns:
+        bool: True if keys were successfully fetched and saved
+    """
+    import asyncio
+
+    async def _fetch():
+        try:
+            client = Client(vault_endpoint)
+            async with client:
+                result = await client.call_tool("get_public_key", {"token": vault_token})
+
+                # Parse the result - handle different response formats
+                if hasattr(result, 'content'):
+                    # TextContent format
+                    content = result.content[0].text if result.content else None
+                elif hasattr(result, 'data'):
+                    content = result.data
+                else:
+                    content = str(result)
+
+                if content:
+                    bundle = json.loads(content)
+
+                    # Ensure key directory exists
+                    os.makedirs(key_path, exist_ok=True)
+
+                    # Save each key file
+                    for filename, key_content in bundle.items():
+                        filepath = os.path.join(key_path, filename)
+                        with open(filepath, 'w') as f:
+                            f.write(key_content)
+                        print(f"[Vault] Saved {filename} to {filepath}")
+
+                    return True
+
+        except Exception as e:
+            print(f"[Vault] Failed to fetch keys from Vault: {e}")
+            return False
+
+        return False
+
+    return asyncio.run(_fetch())
 
 # # For Health Check (Starlette Imports -> Included in FastMCP as dependency)
 # from starlette.requests import Request
@@ -403,6 +456,28 @@ if __name__ == "__main__":
         default=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
         help="Embedding model name for enVector.",
     )
+    # Rune-Vault Integration Options
+    parser.add_argument(
+        "--auto-key-setup",
+        action="store_true",
+        default=os.getenv("ENVECTOR_AUTO_KEY_SETUP", "true").lower() in ("true", "1", "yes"),
+        help="Automatically generate keys if not found. Set to false when keys are provided externally from Vault.",
+    )
+    parser.add_argument(
+        "--no-auto-key-setup",
+        action="store_true",
+        help="Disable automatic key generation. Use when keys are provided from Rune-Vault.",
+    )
+    parser.add_argument(
+        "--vault-endpoint",
+        default=os.getenv("VAULT_MCP_ENDPOINT", None),
+        help="Rune-Vault MCP endpoint URL for fetching public keys (e.g., http://vault-mcp:50080/mcp).",
+    )
+    parser.add_argument(
+        "--vault-token",
+        default=os.getenv("VAULT_TOKEN", None),
+        help="Authentication token for Rune-Vault.",
+    )
     args = parser.parse_args()
     run_mode = args.mode.lower()
 
@@ -437,6 +512,25 @@ if __name__ == "__main__":
     ENVECTOR_EVAL_MODE = args.envector_eval_mode
     ENCRYPTED_QUERY = args.encrypted_query # Plain-Cipher Query Setting
 
+    # Rune-Vault Integration
+    # Determine auto_key_setup: --no-auto-key-setup takes precedence
+    AUTO_KEY_SETUP = args.auto_key_setup and not args.no_auto_key_setup
+    VAULT_ENDPOINT = args.vault_endpoint
+    VAULT_TOKEN = args.vault_token
+
+    # If Vault endpoint is provided, fetch keys from Vault
+    if VAULT_ENDPOINT and VAULT_TOKEN:
+        print(f"[Rune] Fetching public keys from Vault: {VAULT_ENDPOINT}")
+        if fetch_keys_from_vault(VAULT_ENDPOINT, VAULT_TOKEN, ENVECTOR_KEY_PATH):
+            print("[Rune] Successfully fetched keys from Vault")
+            AUTO_KEY_SETUP = False  # Keys provided externally, no need to auto-generate
+        else:
+            print("[Rune] Warning: Failed to fetch keys from Vault, falling back to local keys")
+    elif VAULT_ENDPOINT and not VAULT_TOKEN:
+        print("[Rune] Warning: Vault endpoint provided but no token specified. Skipping Vault integration.")
+    elif not AUTO_KEY_SETUP:
+        print(f"[Rune] Using externally provided keys from: {ENVECTOR_KEY_PATH}")
+
     envector_adapter = EnVectorSDKAdapter(
         address=ENVECTOR_ADDRESS,
         key_id=ENVECTOR_KEY_ID,
@@ -444,6 +538,7 @@ if __name__ == "__main__":
         eval_mode=ENVECTOR_EVAL_MODE,
         query_encryption=ENCRYPTED_QUERY,
         access_token=ENVECTOR_CLOUD_ACCESS_TOKEN,
+        auto_key_setup=AUTO_KEY_SETUP,
     )
 
     # Import embedding adapter lazily to avoid heavy dependencies when not needed (e.g., in tests)

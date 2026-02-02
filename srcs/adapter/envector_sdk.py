@@ -22,18 +22,25 @@ class EnVectorSDKAdapter:
             eval_mode: str,
             query_encryption: bool,
             access_token: str = None,
+            auto_key_setup: bool = True,
         ):
         """
         Initializes the EnVectorSDKAdapter with an optional endpoint.
 
         Args:
-            endpoint (Optional[str]): The endpoint URL for the enVector SDK.
-            port (Optional[int]): The port number for the enVector SDK.
+            address (str): The endpoint URL for the enVector SDK.
+            key_id (str): The key identifier for the enVector SDK.
+            key_path (str): The path to the key files.
+            eval_mode (str): The evaluation mode for the enVector SDK.
+            query_encryption (bool): Whether to encrypt the query vectors.
+            access_token (str, optional): The access token for the enVector SDK.
+            auto_key_setup (bool): If True, generates keys automatically when not found.
+                                   Set to False when keys are provided externally (e.g., from Vault).
         """
         if not key_path:
             key_path = str(KEY_PATH)
         self.query_encryption = query_encryption
-        ev.init(address=address, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True, access_token=access_token)
+        ev.init(address=address, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=auto_key_setup, access_token=access_token)
 
     #------------------- Create Index ------------------#
 
