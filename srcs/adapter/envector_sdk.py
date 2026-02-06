@@ -1,6 +1,7 @@
 # Summary of file: enVector SDK Adapter(enVector APIs Caller)
 
 from typing import Union, List, Dict, Any
+import base64
 import numpy as np
 import pyenvector as ev  # pip install pyenvector
 from pyenvector.crypto.block import CipherBlock
@@ -209,6 +210,60 @@ class EnVectorSDKAdapter:
         index = ev.Index(index_name)  # Create an index instance with the given index name
         # Search with the provided query and topk. Fixed output_fields parameter for now.
         return index.search(query, top_k=topk, output_fields=["metadata"])
+
+    #------------------- Remember (Vault-Secured Pipeline) ------------------#
+
+    def call_remember_scoring(
+        self, index_name: str, query: Union[List[float], List[List[float]]]
+    ) -> Dict[str, Any]:
+        """
+        Scores query against the index and returns encrypted blobs
+        (base64-encoded) for Vault decryption.
+
+        Args:
+            index_name: Index to search.
+            query: Query vector(s).
+
+        Returns:
+            Dict with ok, encrypted_blobs (List[str]), or error.
+        """
+        try:
+            index = ev.Index(index_name)
+            raw_blobs = index.search(query, decrypt=False)
+            encoded_blobs = [base64.b64encode(blob).decode("utf-8") for blob in raw_blobs]
+            return {"ok": True, "encrypted_blobs": encoded_blobs}
+        except Exception as e:
+            return {"ok": False, "error": repr(e)}
+
+    def call_remember_retrieve(
+        self,
+        index_name: str,
+        indices: List[Dict[str, Any]],
+        output_fields: List[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Retrieves metadata for indices returned by Vault after decryption.
+
+        Args:
+            index_name: Index to fetch metadata from.
+            indices: List of dicts with "index", "score", optionally "shard_idx".
+            output_fields: Fields to include (default: ["metadata"]).
+
+        Returns:
+            Dict with ok, results (List[dict]), or error.
+        """
+        try:
+            if output_fields is None:
+                output_fields = ["metadata"]
+
+            index = ev.Index(index_name)
+            results = index.get_metadata_by_indices(
+                indices=indices,
+                output_fields=output_fields,
+            )
+            return self._to_json_available({"ok": True, "results": results})
+        except Exception as e:
+            return {"ok": False, "error": repr(e)}
 
     @staticmethod
     def _to_json_available(obj: Any) -> Any:

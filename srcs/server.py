@@ -366,52 +366,46 @@ class MCPServerApp:
                 raise ToolError(f"Invalid query parameter: {exc}") from exc
             return self.envector.call_search(index_name=index_name, query=preprocessed_query, topk=topk)
 
-        # ---------- MCP Tools: Secure Search with Vault Decryption ---------- #
+        # ---------- MCP Tools: Remember (Vault-Secured Retrieval) ---------- #
         @self.mcp.tool(
-            name="secure_search",
+            name="remember",
             description=(
-                "Perform encrypted vector search with decryption delegated to Rune-Vault. "
-                "This is the secure search mode where the MCP server never has access to decryption keys. "
-                "Requires Vault to be configured with --vault-endpoint and --vault-token."
+                "Retrieve organizational memory through Vault-secured pipeline. "
+                "Decryption is delegated to Rune-Vault; the MCP server never "
+                "has access to decryption keys."
             )
         )
-        async def tool_secure_search(
-            index_name: Annotated[str, Field(description="index name to search from")],
-            query: Annotated[Any, Field(description="search query (text, vector, or JSON-encoded string)")],
-            topk: Annotated[int, Field(description="number of top-k results to return (max 10)")],
+        async def tool_remember(
+            index_name: Annotated[str, Field(description="index name to recall from")],
+            query: Annotated[Any, Field(description="recall query (text, vector, or JSON-encoded string)")],
+            topk: Annotated[int, Field(description="number of results to recall (max 10)")],
             request_id: Annotated[str, Field(description="optional correlation ID for audit trail")] = "",
         ) -> Dict[str, Any]:
             """
-            Secure search with Vault-based decryption.
+            Recall organizational decisions and context from encrypted memory.
 
-            Security Model:
-            1. Query is embedded and encrypted locally (MCP Server)
-            2. Encrypted query sent to enVector Cloud
-            3. Encrypted results received from enVector Cloud
-            4. Encrypted results sent to Rune-Vault for decryption
-            5. Vault decrypts using SecKey (never exposed to MCP Server)
-            6. Decrypted indices returned to MCP Server
-            7. MCP Server fetches metadata for those indices
+            Pipeline:
+            1. Embed & score query against encrypted index
+            2. Vault decrypts scores and selects top-k (SecKey never leaves Vault)
+            3. Retrieve metadata for top-k results
 
             Args:
-                index_name: The name of the index to search.
-                query: Search query (text or vector).
-                topk: Number of top results (max 10, enforced by Vault).
+                index_name: The index to recall from.
+                query: Recall query (text or vector).
+                topk: Number of results (max 10, enforced by Vault).
                 request_id: Optional correlation ID for audit trail.
 
             Returns:
-                Dict with search results and audit information.
+                Dict with recalled results and audit information.
             """
-            # Check Vault availability
             if self.vault is None:
                 return {
                     "ok": False,
-                    "error": "Vault not configured. Use --vault-endpoint and --vault-token to enable secure search.",
-                    "hint": "Falling back to standard search is not allowed in secure mode."
+                    "error": "Vault not configured. Set --vault-endpoint and --vault-token.",
                 }
 
             # Preprocess query
-            def _preprocess_query_secure(raw_query: Any) -> Union[List[float], List[List[float]]]:
+            def _preprocess(raw_query: Any) -> Union[List[float], List[List[float]]]:
                 if isinstance(raw_query, str):
                     raw_query = raw_query.strip()
                     if self.embedding is not None:
@@ -426,68 +420,65 @@ class MCPServerApp:
                 elif isinstance(raw_query, list) and all(isinstance(q, np.ndarray) for q in raw_query):
                     raw_query = [q.tolist() for q in raw_query]
 
-                def _is_vector(value: Any) -> bool:
-                    return isinstance(value, list) and all(isinstance(v, (int, float)) for v in value)
+                def _is_vector(v: Any) -> bool:
+                    return isinstance(v, list) and all(isinstance(x, (int, float)) for x in v)
 
                 if _is_vector(raw_query):
                     return raw_query
                 if isinstance(raw_query, list) and all(_is_vector(item) for item in raw_query):
                     return raw_query
-
                 raise ValueError(f"Invalid query format: {type(raw_query).__name__}")
 
             try:
-                preprocessed_query = _preprocess_query_secure(query)
+                preprocessed_query = _preprocess(query)
             except ValueError as exc:
                 return {"ok": False, "error": f"Query preprocessing failed: {exc}"}
 
-            # Enforce Vault's max top_k policy
             if topk > 10:
-                return {
-                    "ok": False,
-                    "error": "Policy Violation: max top_k is 10 in secure search mode."
-                }
+                return {"ok": False, "error": "Policy: max top_k is 10."}
 
             try:
-                # Step 1: Search (SDK handles encryption internally for now)
-                # TODO: When SDK supports returning encrypted results without auto-decrypt,
-                #       this will call encrypted_search() and pass blob to Vault
-                search_result = self.envector.call_search(
+                # Step 1: Score → encrypted blobs
+                scoring_result = self.envector.call_remember_scoring(
                     index_name=index_name,
-                    query=preprocessed_query,
-                    topk=topk
+                    query=preprocessed_query
                 )
+                if not scoring_result.get("ok"):
+                    return {"ok": False, "error": scoring_result.get("error"), "request_id": request_id or "N/A"}
 
-                if not search_result.get("ok"):
-                    return search_result
+                blobs = scoring_result["encrypted_blobs"]
+                if not blobs:
+                    return {"ok": True, "results": [], "request_id": request_id or "N/A"}
 
-                # Note: Current SDK auto-decrypts. In full implementation:
-                # 1. SDK would return encrypted_blob_b64
-                # 2. We'd call: vault_result = self.vault.decrypt_search_results(encrypted_blob_b64, topk, request_id)
-                # 3. Then fetch metadata for vault_result.results
+                # Step 2: Vault decrypts + top-k
+                vault_result = self.vault.decrypt_search_results(
+                    encrypted_blob_b64=blobs[0],
+                    top_k=topk,
+                    request_id=request_id or None
+                )
+                if not vault_result.ok:
+                    return {"ok": False, "error": f"Vault: {vault_result.error}", "request_id": vault_result.request_id}
 
-                # For now, return results with Vault audit marker
+                # Step 3: Retrieve metadata
+                metadata_result = self.envector.call_remember_retrieve(
+                    index_name=index_name,
+                    indices=vault_result.results,
+                    output_fields=["metadata"]
+                )
+                if not metadata_result.get("ok"):
+                    return {"ok": False, "error": metadata_result.get("error"), "request_id": vault_result.request_id}
+
                 return {
                     "ok": True,
-                    "results": search_result.get("results", []),
-                    "secure_mode": True,
-                    "vault_status": "connected",
-                    "request_id": request_id or "N/A",
-                    "note": "Full Vault integration pending SDK update for encrypted result passthrough."
+                    "results": metadata_result.get("results", []),
+                    "request_id": vault_result.request_id,
+                    "total_vectors": vault_result.total_vectors,
                 }
 
             except VaultError as e:
-                return {
-                    "ok": False,
-                    "error": f"Vault error: {e}",
-                    "request_id": request_id or "N/A"
-                }
+                return {"ok": False, "error": f"Vault error: {e}", "request_id": request_id or "N/A"}
             except Exception as e:
-                return {
-                    "ok": False,
-                    "error": f"Search failed: {e}",
-                    "request_id": request_id or "N/A"
-                }
+                return {"ok": False, "error": str(e), "request_id": request_id or "N/A"}
 
         # ---------- MCP Tools: Vault Health Check ---------- #
         @self.mcp.tool(
@@ -736,10 +727,10 @@ if __name__ == "__main__":
             vault_token=VAULT_TOKEN,
             timeout=30.0
         )
-        print("[Rune] Vault client initialized - secure_search tool available")
+        print("[Rune] Vault client initialized - remember tool available")
     else:
-        print("[Rune] Vault not configured - secure_search tool will be unavailable")
-        print("[Rune] To enable secure search, set --vault-endpoint and --vault-token")
+        print("[Rune] Vault not configured - remember tool will be unavailable")
+        print("[Rune] To enable remember, set --vault-endpoint and --vault-token")
 
     app = MCPServerApp(
         mcp_server_name=MCP_SERVER_NAME,
