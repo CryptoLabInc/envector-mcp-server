@@ -131,8 +131,7 @@ Arguments to run Python scripts:
     - `--envector-key-path`: path to enVector key files.
     - `--envector-eval-mode`: enVector FHE evaluation mode. Recommend to use `rmp` (default) mode for more flexible usage.
     - `--encrypted-query`: whether to encrypt the query vectors. The index is encrypted by default.
-    - `--auto-key-setup`: automatically generate keys if not found (default: true).
-    - `--no-auto-key-setup`: disable automatic key generation. Use when keys are provided externally.
+    - `--no-auto-key-setup`: disable automatic key generation (default: auto-generate enabled). Use when keys are provided externally (e.g., from Rune-Vault).
 
     > ⚠️ **Note**: MCP server holds the key for homomorphic encryption as MCP server is a enVector Client.
 

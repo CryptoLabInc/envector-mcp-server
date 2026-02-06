@@ -621,15 +621,9 @@ if __name__ == "__main__":
     )
     # Rune-Vault Integration Options
     parser.add_argument(
-        "--auto-key-setup",
-        action="store_true",
-        default=os.getenv("ENVECTOR_AUTO_KEY_SETUP", "true").lower() in ("true", "1", "yes"),
-        help="Automatically generate keys if not found. Set to false when keys are provided externally from Vault.",
-    )
-    parser.add_argument(
         "--no-auto-key-setup",
         action="store_true",
-        help="Disable automatic key generation. Use when keys are provided from Rune-Vault.",
+        help="Disable automatic key generation. Use when keys are provided externally (e.g., from Rune-Vault).",
     )
     parser.add_argument(
         "--vault-endpoint",
@@ -676,8 +670,9 @@ if __name__ == "__main__":
     ENCRYPTED_QUERY = args.encrypted_query # Plain-Cipher Query Setting
 
     # Rune-Vault Integration
-    # Determine auto_key_setup: --no-auto-key-setup takes precedence
-    AUTO_KEY_SETUP = args.auto_key_setup and not args.no_auto_key_setup
+    # env var default "true" → auto-generation ON; CLI --no-auto-key-setup overrides to OFF
+    _env_var = os.getenv("ENVECTOR_AUTO_KEY_SETUP", "true").lower() in ("true", "1", "yes")
+    AUTO_KEY_SETUP = _env_var and not args.no_auto_key_setup
     VAULT_ENDPOINT = args.vault_endpoint
     VAULT_TOKEN = args.vault_token
 
