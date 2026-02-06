@@ -385,8 +385,8 @@ class MCPServerApp:
             Recall organizational decisions and context from encrypted memory.
 
             Pipeline:
-            1. Embed & score query against encrypted index
-            2. Vault decrypts scores and selects top-k (SecKey never leaves Vault)
+            1. Embed query, run similarity search on encrypted index → result ciphertext
+            2. Vault decrypts result ciphertext to obtain similarity values, selects top-k (SecKey never leaves Vault)
             3. Retrieve metadata for top-k results
 
             Args:
@@ -438,7 +438,7 @@ class MCPServerApp:
                 return {"ok": False, "error": "Policy: max top_k is 10."}
 
             try:
-                # Step 1: Score → encrypted blobs
+                # Step 1: encrypted search → result ciphertext
                 scoring_result = self.envector.call_remember_scoring(
                     index_name=index_name,
                     query=preprocessed_query

@@ -217,15 +217,15 @@ class EnVectorSDKAdapter:
         self, index_name: str, query: Union[List[float], List[List[float]]]
     ) -> Dict[str, Any]:
         """
-        Scores query against the index and returns encrypted blobs
-        (base64-encoded) for Vault decryption.
+        Query against the encrypted index and returns the result
+        ciphertext (base64-encoded) for Vault decryption.
 
         Args:
             index_name: Index to search.
             query: Query vector(s).
 
         Returns:
-            Dict with ok, encrypted_blobs (List[str]), or error.
+            Dict with ok, encrypted_blobs (List[str] of result ciphertexts), or error.
         """
         try:
             index = ev.Index(index_name)

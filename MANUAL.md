@@ -25,6 +25,8 @@ This document let users know how to use `enVector MCP Server`
 - `create_index`: Create an index in enVector.
 - `insert`: Insert vectors and the corresponding metadata into enVector index. Support to specify embedding model to get embedding vectors to insert.
 - `search`: Perform vector search and Retrieve Metadata from enVector. Support to specify embedding model to get embedding vectors to search.
+- `remember`: Vault-secured organizational memory recall. Orchestrates a 3-step pipeline: (1) homomorphic search on encrypted index, (2) Vault decryption of result ciphertext + top-k selection, (3) metadata retrieval. Requires `--vault-endpoint` and `--vault-token`.
+- `vault_status`: Check Rune-Vault connection status and security mode.
 - `insert_documents_from_path`: Insert documents from the given path. Support to read and chunk the document file, get embedding of texts and insert them into enVector.
 - `insert_documents_from_text`: Insert documents from the given texts. Support to chunk the document file, get embedding of texts and insert them into enVector.
 
@@ -325,29 +327,31 @@ When used with [Rune](https://github.com/CryptoLabInc/rune), the envector-mcp-se
 │                    Rune Architecture                      │
 └───────────────────────────────────────────────────────────┘
 
-                  ┌──────────────────────┐
-                  │   Rune-Vault MCP     │  ← Centralized
-                  │   (Decryption Only)  │    Key Management
-                  ├──────────────────────┤
-                  │ Holds: SecKey        │
-                  │ Exposes: EncKey,     │
-                  │   EvalKey (public)   │
-                  └──────────┬───────────┘
-                             │ Public Keys Distribution
-                             ▼
-        ┌──────────────────────────────────────────┐
-        │         envector-mcp-server(s)           │  ← Scalable
-        │         (Encryption + Search)            │     Workers
-        ├──────────────────────────────────────────┤
-        │ Uses: EncKey, EvalKey (from Vault)       │
-        │ Tools: create_index, insert, search      │
-        └──────────────────────┬───────────────────┘
-                               │
-                               ▼
-                  ┌──────────────────────┐
-                  │   enVector Cloud     │
-                  │   (Encrypted Storage)│
-                  └──────────────────────┘
+  Agent (Claude/Gemini/Custom)
+    │
+    │  MCP tool calls: insert, search, remember, vault_status
+    ▼
+  ┌──────────────────────────────────────────┐
+  │         envector-mcp-server              │  ← Scalable Workers
+  ├──────────────────────────────────────────┤
+  │ Uses: EncKey, EvalKey (public keys)      │
+  │                                          │
+  │ Tools:                                   │
+  │  insert / search    → direct pipeline    │
+  │  remember           → Vault pipeline:    │
+  │    1. search(decrypt=False) → ciphertext │
+  │    2. Vault decrypt + top-k selection    │
+  │    3. get_metadata_by_indices → results  │
+  └─────────┬──────────────────┬─────────────┘
+            │                  │
+            ▼                  ▼
+  ┌──────────────────┐  ┌──────────────────────┐
+  │  enVector Cloud  │  │   Rune-Vault MCP     │
+  │ (Encrypted Store)│  │  (SecKey holder)     │
+  │                  │  │  - get_public_key()  │
+  │ Encrypted vectors│  │  - decrypt_scores()  │
+  │  & metadata      │  │  Admin-controlled    │
+  └──────────────────┘  └──────────────────────┘
 ```
 
 ### Configuration for Rune
@@ -417,4 +421,13 @@ services:
 3. **Local Save**: Keys are saved to `--envector-key-path` directory
 4. **SDK Init**: pyenvector SDK initializes with fetched keys (`auto_key_setup=False`)
 5. **Operations**: Insert/Search operations use public keys for encryption
-6. **Decryption**: Results are decrypted by Vault using SecKey (never exposed)
+
+### Remember Pipeline (Vault-Secured Recall)
+
+When an agent calls the `remember` tool, the MCP server orchestrates a 3-step pipeline:
+
+1. **Search**: `index.search(query, decrypt=False)` → result ciphertext (base64-serialized). The Cloud computes encrypted similarity scores and packs into a result ciphertext.
+2. **Vault Decrypt**: Send result ciphertext to Vault's `decrypt_scores(token, blob, top_k)`. Vault decrypts with SecKey to obtain similarity values, selects top-k → `[{index, score}, ...]`
+3. **Retrieve**: `index.get_metadata_by_indices(indices)` → plaintext metadata returned to agent
+
+SecKey never leaves Vault. The MCP server and agent only see the result ciphertext and final metadata.

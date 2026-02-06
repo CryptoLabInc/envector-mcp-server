@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class DecryptResult:
-    """Result from Vault decryption."""
+    """Result from Vault decryption of the result ciphertext."""
     ok: bool
-    results: List[Dict[str, Any]]  # [{index: int, score: float}, ...]
+    results: List[Dict[str, Any]]  # [{index: int, score: float}, ...] — similarity values
     request_id: str
     timestamp: float
     total_vectors: int = 0
@@ -55,7 +55,8 @@ class VaultClient:
     Async HTTP client for Rune-Vault MCP decryption service.
 
     The Vault holds the FHE SecKey and performs all decryption operations.
-    This client sends encrypted blobs to Vault and receives decrypted results.
+    This client sends result ciphertext (from encrypted similarity search) to Vault
+    and receives top-k indices with similarity values.
 
     Usage:
         client = VaultClient(
@@ -112,15 +113,22 @@ class VaultClient:
         request_id: Optional[str] = None
     ) -> DecryptResult:
         """
-        Call Vault MCP to decrypt search results.
+        Call Vault MCP to decrypt result ciphertext from encrypted similarity
+        search.
+
+        The Cloud computes inner products between the encrypted query and
+        stored encrypted embeddings, producing an LWE ciphertext packed
+        into CKKS LRWE form. This method sends that result ciphertext to
+        Vault for decryption with SecKey.
 
         Args:
-            encrypted_blob_b64: Base64-encoded encrypted results from enVector Cloud
+            encrypted_blob_b64: Base64-encoded result ciphertext from
+                encrypted similarity search on enVector Cloud
             top_k: Number of top results to return (max 10)
             request_id: Optional correlation ID for audit trail
 
         Returns:
-            DecryptResult with decrypted indices and scores
+            DecryptResult with top-k indices and similarity values
 
         Raises:
             VaultError: If Vault call fails after retries
@@ -248,15 +256,16 @@ class VaultClientSync:
         request_id: Optional[str] = None
     ) -> DecryptResult:
         """
-        Synchronously call Vault MCP to decrypt search results.
+        Synchronously call Vault MCP to decrypt result ciphertext.
 
         Args:
-            encrypted_blob_b64: Base64-encoded encrypted results from enVector Cloud
+            encrypted_blob_b64: Base64-encoded result ciphertext from
+                encrypted similarity search on enVector Cloud
             top_k: Number of top results to return
             request_id: Optional correlation ID
 
         Returns:
-            DecryptResult with decrypted indices and scores
+            DecryptResult with top-k indices and similarity values
         """
         if not request_id:
             request_id = f"mcp_sync_{uuid.uuid4().hex[:12]}"
