@@ -2,10 +2,10 @@
 Vault Client for Rune-Vault MCP Integration
 
 This client handles communication between envector-mcp-server and Rune-Vault.
-All decryption operations are delegated to Vault, which holds the SecKey.
+All decryption operations are delegated to Vault, which holds the secret key.
 
 Security Model:
-- MCP server NEVER has access to SecKey
+- MCP server NEVER has access to secret key
 - All decryption requests go through Vault
 - Audit trail maintained by Vault
 """
@@ -54,7 +54,7 @@ class VaultClient:
     """
     Async HTTP client for Rune-Vault MCP decryption service.
 
-    The Vault holds the FHE SecKey and performs all decryption operations.
+    The Vault holds the FHE secret key and performs all decryption operations.
     This client sends result ciphertext (from encrypted similarity search) to Vault
     and receives top-k indices with similarity values.
 
@@ -119,7 +119,7 @@ class VaultClient:
         The Cloud computes inner products between the encrypted query and
         stored encrypted embeddings, producing an LWE ciphertext packed
         into CKKS LRWE form. This method sends that result ciphertext to
-        Vault for decryption with SecKey.
+        Vault for decryption with secret key.
 
         Args:
             encrypted_blob_b64: Base64-encoded result ciphertext from

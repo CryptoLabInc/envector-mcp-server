@@ -141,7 +141,7 @@ Arguments to run Python scripts:
     - `--vault-endpoint`: Rune-Vault MCP endpoint URL for fetching public keys.
     - `--vault-token`: Authentication token for Rune-Vault.
 
-    > 💡 **Rune Integration**: When integrated with Rune, the Vault MCP manages cryptographic keys centrally. The envector-mcp-server fetches public keys (EncKey, EvalKey) from Vault at startup, while SecKey remains securely in Vault for decryption operations. See [Rune Architecture](#rune-integration) for details.
+    > 💡 **Rune Integration**: When integrated with Rune, the Vault MCP manages cryptographic keys centrally. The envector-mcp-server fetches public keys (EncKey, EvalKey) from Vault at startup, while secret key remains securely in Vault for decryption operations. See [Rune Architecture](#rune-integration) for details.
 
 - ⚙️ Embedding options
     - `--embedding-mode`: Mode of the embedding model. Supports `femb` (FastEmb), `hf` (huggingface), `sbert` (SBERT; sentence-transformers), and `openai` (OpenAI API). For `openai`, required to set environmental variable `OPENAI_API_KEY`.
@@ -347,7 +347,7 @@ When used with [Rune](https://github.com/CryptoLabInc/rune), the envector-mcp-se
             ▼                  ▼
   ┌──────────────────┐  ┌──────────────────────┐
   │  enVector Cloud  │  │   Rune-Vault MCP     │
-  │ (Encrypted Store)│  │  (SecKey holder)     │
+  │ (Encrypted Store)│  │  (secret key holder) │
   │                  │  │  - get_public_key()  │
   │ Encrypted vectors│  │  - decrypt_scores()  │
   │  & metadata      │  │  Admin-controlled    │
@@ -427,7 +427,7 @@ services:
 When an agent calls the `remember` tool, the MCP server orchestrates a 3-step pipeline:
 
 1. **Search**: `index.search(query, decrypt=False)` → result ciphertext (base64-serialized). The Cloud computes encrypted similarity scores and packs into a result ciphertext.
-2. **Vault Decrypt**: Send result ciphertext to Vault's `decrypt_scores(token, blob, top_k)`. Vault decrypts with SecKey to obtain similarity values, selects top-k → `[{index, score}, ...]`
+2. **Vault Decrypt**: Send result ciphertext to Vault's `decrypt_scores(token, blob, top_k)`. Vault decrypts with secret key to obtain similarity values, selects top-k → `[{index, score}, ...]`
 3. **Retrieve**: `index.get_metadata_by_indices(indices)` → plaintext metadata returned to agent
 
-SecKey never leaves Vault. The MCP server and agent only see the result ciphertext and final metadata.
+Secret key never leaves Vault. The MCP server and agent only see the result ciphertext and final metadata.

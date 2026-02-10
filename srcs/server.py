@@ -97,8 +97,8 @@ class MCPServerApp:
 
     Security Model (with Rune-Vault):
     - MCP Server handles embeddings, query encryption, and orchestration
-    - Rune-Vault holds SecKey and performs all decryption
-    - Agent never has access to SecKey
+    - Rune-Vault holds secret key and performs all decryption
+    - Agent never has access to secret key
     """
     def __init__(
             self,
@@ -344,7 +344,7 @@ class MCPServerApp:
             name="search",
             description=(
                 "Search your own encrypted vector data on enVector Cloud. "
-                "The decryption key (SecKey) is held locally by this MCP server runtime, "
+                "The decryption key (secret key) is held locally by this MCP server runtime, "
                 "so this tool is for indexes where the data owner is the current operator. "
                 "Use 'remember' instead when accessing shared team memory where the "
                 "decryption key is managed by a separate Vault server. "
@@ -380,7 +380,7 @@ class MCPServerApp:
             description=(
                 "Recall from shared team memory stored on enVector Cloud. "
                 "Unlike 'search' where the data owner is the local operator, "
-                "'remember' accesses indexes whose decryption key (SecKey) is held "
+                "'remember' accesses indexes whose decryption key (secret key) is held "
                 "exclusively by a team-shared Rune-Vault server — never loaded into "
                 "this MCP server runtime. This isolation prevents agent tampering "
                 "attacks from indiscriminately decrypting shared vectors. "
@@ -402,7 +402,7 @@ class MCPServerApp:
 
             Pipeline:
             1. Embed query, run encrypted similarity scoring on enVector Cloud → result ciphertext
-            2. Rune-Vault decrypts result ciphertext with SecKey, selects top-k (SecKey never leaves Vault)
+            2. Rune-Vault decrypts result ciphertext with secret key, selects top-k (secret key never leaves Vault)
             3. Retrieve metadata for top-k indices from enVector Cloud
 
             Args:
@@ -490,7 +490,7 @@ class MCPServerApp:
                     "vault_configured": False,
                     "secure_search_available": False,
                     "mode": "standard (no Vault)",
-                    "warning": "SecKey may be accessible locally. Configure Vault for secure mode."
+                    "warning": "secret key may be accessible locally. Configure Vault for secure mode."
                 }
 
             # Check Vault health
