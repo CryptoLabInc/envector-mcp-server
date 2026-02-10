@@ -342,11 +342,18 @@ class MCPServerApp:
         # ---------- MCP Tools: Search ---------- #
         @self.mcp.tool(
             name="search",
-            description="Perform vector search and Retrieve Metadata using enVector SDK."
+            description=(
+                "Search your own encrypted vector data on enVector Cloud. "
+                "The decryption key (SecKey) is held locally by this MCP server runtime, "
+                "so this tool is for indexes where the data owner is the current operator. "
+                "Use 'remember' instead when accessing shared team memory where the "
+                "decryption key is managed by a separate Vault server. "
+                "Accepts text queries (auto-embedded), vector arrays, or JSON-encoded vectors."
+            )
         )
         async def tool_search(
             index_name: Annotated[str, Field(description="index name to search from")],
-            query: Annotated[Any, Field(description="search query vector (list), batch of vectors, or JSON-encoded string")],
+            query: Annotated[Any, Field(description="search query: natural language text, vector (list of floats), or JSON-encoded vector")],
             topk: Annotated[int, Field(description="number of top-k results to return")],
         ) -> Dict[str, Any]:
             """
@@ -371,24 +378,32 @@ class MCPServerApp:
         @self.mcp.tool(
             name="remember",
             description=(
-                "Retrieve organizational memory through Vault-secured pipeline. "
-                "Decryption is delegated to Rune-Vault; the MCP server never "
-                "has access to decryption keys."
+                "Recall from shared team memory stored on enVector Cloud. "
+                "Unlike 'search' where the data owner is the local operator, "
+                "'remember' accesses indexes whose decryption key (SecKey) is held "
+                "exclusively by a team-shared Rune-Vault server — never loaded into "
+                "this MCP server runtime. This isolation prevents agent tampering "
+                "attacks from indiscriminately decrypting shared vectors. "
+                "Vault enforces access policy (max 10 results per query, audit trail). "
+                "Use this when recalling shared team knowledge: past decisions, "
+                "institutional context, onboarding material, or any collectively "
+                "owned memory. "
+                "Accepts text queries (auto-embedded), vector arrays, or JSON-encoded vectors."
             )
         )
         async def tool_remember(
             index_name: Annotated[str, Field(description="index name to remember from")],
-            query: Annotated[Any, Field(description="recall query vector (list), batch of vectors, or JSON-encoded string)")],
-            topk: Annotated[int, Field(description="number of top-k results to recall (max 10)")],
+            query: Annotated[Any, Field(description="recall query: natural language text, vector (list of floats), or JSON-encoded vector")],
+            topk: Annotated[int, Field(description="number of results to recall (1-10, enforced by Vault policy)")],
             request_id: Annotated[str, Field(description="optional correlation ID for audit trail")] = "",
         ) -> Dict[str, Any]:
             """
             Recall organizational decisions and context from encrypted memory.
 
             Pipeline:
-            1. Embed query, run similarity search on encrypted index → result ciphertext
-            2. Vault decrypts result ciphertext to obtain similarity values, selects top-k (SecKey never leaves Vault)
-            3. Retrieve metadata for top-k results
+            1. Embed query, run encrypted similarity scoring on enVector Cloud → result ciphertext
+            2. Rune-Vault decrypts result ciphertext with SecKey, selects top-k (SecKey never leaves Vault)
+            3. Retrieve metadata for top-k indices from enVector Cloud
 
             Args:
                 index_name (str): The name of index to recall from.
