@@ -141,7 +141,7 @@ class VaultClient:
         payload = {
             "method": "tools/call",
             "params": {
-                "name": "decrypt_search_results",
+                "name": "decrypt_scores",
                 "arguments": {
                     "token": self.vault_token,
                     "encrypted_blob_b64": encrypted_blob_b64,
@@ -273,7 +273,7 @@ class VaultClientSync:
         payload = {
             "method": "tools/call",
             "params": {
-                "name": "decrypt_search_results",
+                "name": "decrypt_scores",
                 "arguments": {
                     "token": self.vault_token,
                     "encrypted_blob_b64": encrypted_blob_b64,

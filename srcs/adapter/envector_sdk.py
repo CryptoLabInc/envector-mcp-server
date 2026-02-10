@@ -213,29 +213,30 @@ class EnVectorSDKAdapter:
 
     #------------------- Remember (Vault-Secured Pipeline) ------------------#
 
-    def call_remember_scoring(
+    def call_score(
         self, index_name: str, query: Union[List[float], List[List[float]]]
     ) -> Dict[str, Any]:
         """
-        Query against the encrypted index and returns the result
-        ciphertext (base64-encoded) for Vault decryption.
+        Query against the encrypted index and returns the result ciphertext for Vault decryption.
 
         Args:
             index_name: Index to search.
             query: Query vector(s).
 
         Returns:
-            Dict with ok, encrypted_blobs (List[str] of result ciphertexts), or error.
+            Dict with ok, encrypted_blobs (List[str] of base64-encoded CiphertextScore protobuf), or error.
         """
         try:
             index = ev.Index(index_name)
-            raw_blobs = index.search(query, decrypt=False)
-            encoded_blobs = [base64.b64encode(blob).decode("utf-8") for blob in raw_blobs]
+            scores = index.scoring(query)  # List[CipherBlock] with is_score=True
+            encoded_blobs = []
+            for cb in scores:
+                encoded_blobs.append(cb.data._data)
             return {"ok": True, "encrypted_blobs": encoded_blobs}
         except Exception as e:
             return {"ok": False, "error": repr(e)}
 
-    def call_remember_retrieve(
+    def call_remind(
         self,
         index_name: str,
         indices: List[Dict[str, Any]],
@@ -246,7 +247,7 @@ class EnVectorSDKAdapter:
 
         Args:
             index_name: Index to fetch metadata from.
-            indices: List of dicts with "index", "score", optionally "shard_idx".
+            indices: List of dicts with "shard_idx", "row_idx", "score".
             output_fields: Fields to include (default: ["metadata"]).
 
         Returns:
@@ -257,10 +258,20 @@ class EnVectorSDKAdapter:
                 output_fields = ["metadata"]
 
             index = ev.Index(index_name)
-            results = index.get_metadata_by_indices(
-                indices=indices,
-                output_fields=output_fields,
+            # Indexer.get_metadata expects [{"shard_idx": int, "row_idx": int}]
+            idx_list = [
+                {"shard_idx": entry.get("shard_idx", 0), "row_idx": entry["row_idx"]}
+                for entry in indices
+            ]
+            results = index.indexer.get_metadata(
+                index_name=index_name,
+                idx=idx_list,
+                fields=output_fields,
             )
+            # Attach scores back to results
+            for i, entry in enumerate(indices):
+                if i < len(results):
+                    results[i]["score"] = entry.get("score", 0.0)
             return self._to_json_available({"ok": True, "results": results})
         except Exception as e:
             return {"ok": False, "error": repr(e)}

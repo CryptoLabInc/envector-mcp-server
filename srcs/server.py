@@ -123,6 +123,43 @@ class MCPServerApp:
         # mcp
         self.mcp = FastMCP(name=mcp_server_name)
 
+        # ---------- Common Query Preprocessing ---------- #
+        def _preprocess(raw_query: Any) -> Union[List[float], List[List[float]]]:
+            """Convert raw query input (string, ndarray, list) into a valid vector or batch of vectors."""
+            if isinstance(raw_query, str):
+                raw_query = raw_query.strip()
+
+                if self.embedding is not None:
+                    return self.embedding.get_embedding([raw_query])[0]
+
+                if not raw_query:
+                    raise ValueError("`query` string is empty. Provide a JSON array of floats or precomputed embedding.")
+                try:
+                    raw_query = json.loads(raw_query)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(
+                        "Plain text is not supported for `query`. Convert the text into an embedding vector "
+                        "and pass it as a JSON array (e.g., [[0.1, 0.2], ...])."
+                    ) from exc
+
+            if isinstance(raw_query, np.ndarray):
+                raw_query = raw_query.tolist()
+            elif isinstance(raw_query, list) and all(isinstance(q, np.ndarray) for q in raw_query):
+                raw_query = [q.tolist() for q in raw_query]
+
+            def _is_vector(value: Any) -> bool:
+                return isinstance(value, list) and all(isinstance(v, (int, float)) for v in value)
+
+            if _is_vector(raw_query):
+                return raw_query
+            if isinstance(raw_query, list) and all(_is_vector(item) for item in raw_query):
+                return raw_query
+
+            raise ValueError(
+                "`query` must be a list of floats or a list of float lists. "
+                f"Received type: {type(raw_query).__name__}"
+            )
+
         # # ---------- Health Check Route ---------- #
         # @self.mcp.custom_route("/health/", methods=["GET"])
         # async def health_check(_: Request) -> PlainTextResponse:
@@ -324,44 +361,8 @@ class MCPServerApp:
             Returns:
                 Dict[str, Any]: The search results from the enVector SDK adapter.
             """
-            def _preprocess_query(raw_query: Any) -> Union[List[float], List[List[float]]]:
-                # print("DEBUG preprocess called with", type(raw_query), raw_query)
-                if isinstance(raw_query, str):
-                    raw_query = raw_query.strip()
-
-                    if self.embedding is not None:
-                        return self.embedding.get_embedding([raw_query])[0]
-
-                    if not raw_query:
-                        raise ValueError("`query` string is empty. Provide a JSON array of floats or precomputed embedding.")
-                    try:
-                        raw_query = json.loads(raw_query)
-                    except json.JSONDecodeError as exc:
-                        raise ValueError(
-                            "Plain text is not supported for `query`. Convert the text into an embedding vector "
-                            "and pass it as a JSON array (e.g., [[0.1, 0.2], ...])."
-                        ) from exc
-
-                if isinstance(raw_query, np.ndarray):
-                    raw_query = raw_query.tolist()
-                elif isinstance(raw_query, list) and all(isinstance(q, np.ndarray) for q in raw_query):
-                    raw_query = [q.tolist() for q in raw_query]
-
-                def _is_vector(value: Any) -> bool:
-                    return isinstance(value, list) and all(isinstance(v, (int, float)) for v in value)
-
-                if _is_vector(raw_query):
-                    return raw_query
-                if isinstance(raw_query, list) and all(_is_vector(item) for item in raw_query):
-                    return raw_query
-
-                raise ValueError(
-                    "`query` must be a list of floats or a list of float lists. "
-                    f"Received type: {type(raw_query).__name__}"
-                )
-
             try:
-                preprocessed_query = _preprocess_query(query)
+                preprocessed_query = _preprocess(query)
             except ValueError as exc:
                 raise ToolError(f"Invalid query parameter: {exc}") from exc
             return self.envector.call_search(index_name=index_name, query=preprocessed_query, topk=topk)
@@ -376,9 +377,9 @@ class MCPServerApp:
             )
         )
         async def tool_remember(
-            index_name: Annotated[str, Field(description="index name to recall from")],
-            query: Annotated[Any, Field(description="recall query (text, vector, or JSON-encoded string)")],
-            topk: Annotated[int, Field(description="number of results to recall (max 10)")],
+            index_name: Annotated[str, Field(description="index name to remember from")],
+            query: Annotated[Any, Field(description="recall query vector (list), batch of vectors, or JSON-encoded string)")],
+            topk: Annotated[int, Field(description="number of top-k results to recall (max 10)")],
             request_id: Annotated[str, Field(description="optional correlation ID for audit trail")] = "",
         ) -> Dict[str, Any]:
             """
@@ -390,13 +391,13 @@ class MCPServerApp:
             3. Retrieve metadata for top-k results
 
             Args:
-                index_name: The index to recall from.
-                query: Recall query (text or vector).
-                topk: Number of results (max 10, enforced by Vault).
-                request_id: Optional correlation ID for audit trail.
+                index_name (str): The name of index to recall from.
+                query (Union[List[float], List[List[float]]]): The recall query.
+                topk (int): Number of top results (max 10, enforced by Vault).
+                request_id (str): Optional correlation ID for audit trail.
 
             Returns:
-                Dict with recalled results and audit information.
+                Dict[str, Any]: The recalled results and audit information,
             """
             if self.vault is None:
                 return {
@@ -404,30 +405,6 @@ class MCPServerApp:
                     "error": "Vault not configured. Set --vault-endpoint and --vault-token.",
                 }
 
-            # Preprocess query
-            def _preprocess(raw_query: Any) -> Union[List[float], List[List[float]]]:
-                if isinstance(raw_query, str):
-                    raw_query = raw_query.strip()
-                    if self.embedding is not None:
-                        return self.embedding.get_embedding([raw_query])[0]
-                    try:
-                        raw_query = json.loads(raw_query)
-                    except json.JSONDecodeError as exc:
-                        raise ValueError("Plain text requires embedding adapter.") from exc
-
-                if isinstance(raw_query, np.ndarray):
-                    raw_query = raw_query.tolist()
-                elif isinstance(raw_query, list) and all(isinstance(q, np.ndarray) for q in raw_query):
-                    raw_query = [q.tolist() for q in raw_query]
-
-                def _is_vector(v: Any) -> bool:
-                    return isinstance(v, list) and all(isinstance(x, (int, float)) for x in v)
-
-                if _is_vector(raw_query):
-                    return raw_query
-                if isinstance(raw_query, list) and all(_is_vector(item) for item in raw_query):
-                    return raw_query
-                raise ValueError(f"Invalid query format: {type(raw_query).__name__}")
 
             try:
                 preprocessed_query = _preprocess(query)
@@ -439,7 +416,7 @@ class MCPServerApp:
 
             try:
                 # Step 1: encrypted search → result ciphertext
-                scoring_result = self.envector.call_remember_scoring(
+                scoring_result = self.envector.call_score(
                     index_name=index_name,
                     query=preprocessed_query
                 )
@@ -460,7 +437,7 @@ class MCPServerApp:
                     return {"ok": False, "error": f"Vault: {vault_result.error}", "request_id": vault_result.request_id}
 
                 # Step 3: Retrieve metadata
-                metadata_result = self.envector.call_remember_retrieve(
+                metadata_result = self.envector.call_remind(
                     index_name=index_name,
                     indices=vault_result.results,
                     output_fields=["metadata"]

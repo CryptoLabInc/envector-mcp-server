@@ -299,7 +299,10 @@ class FakeVaultClientSync(VaultClientSync):
     ) -> DecryptResult:
         return DecryptResult(
             ok=True,
-            results=[{"index": 0, "score": 0.95}, {"index": 1, "score": 0.80}][:top_k],
+            results=[
+                {"shard_idx": 0, "row_idx": 0, "score": 0.95},
+                {"shard_idx": 0, "row_idx": 1, "score": 0.80},
+            ][:top_k],
             request_id=request_id or "fake_req_001",
             timestamp=1700000000.0,
             total_vectors=100,
@@ -334,12 +337,12 @@ def mcp_server_with_vault():
         def invoke_search(self, index_name: str, query, topk: int):
             return [{"id": 1, "score": 0.9, "metadata": {"fieldA": "valueA"}}]
 
-        # --- new remember pipeline mocks ---
-        def call_remember_scoring(self, index_name: str, query) -> Dict[str, Any]:
+        # --- new remember (score + remind) pipeline mocks ---
+        def call_score(self, index_name: str, query) -> Dict[str, Any]:
             return {"ok": True, "encrypted_blobs": ["ZmFrZV9ibG9i"]}
 
-        def call_remember_retrieve(self, index_name: str, indices: List[Dict[str, Any]], output_fields=None) -> Dict[str, Any]:
-            results = [{"metadata": f"memory_{entry['index']}"} for entry in indices]
+        def call_remind(self, index_name: str, indices: List[Dict[str, Any]], output_fields=None) -> Dict[str, Any]:
+            results = [{"metadata": f"memory_{entry['shard_idx']}_{entry['row_idx']}", "score": entry.get("score", 0.0)} for entry in indices]
             return {"ok": True, "results": results}
 
     app = MCPServerApp(
