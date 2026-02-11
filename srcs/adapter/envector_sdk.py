@@ -271,11 +271,24 @@ class EnVectorSDKAdapter:
                 idx=idx_list,
                 fields=output_fields,
             )
-            # Attach scores back to results
+            # Convert Metadata objects to dicts and attach scores
+            results_with_scores = []
             for i, entry in enumerate(indices):
                 if i < len(results):
-                    results[i]["score"] = entry.get("score", 0.0)
-            return self._to_json_available({"ok": True, "results": results})
+                    # Convert Metadata object to dict using vars() or __dict__
+                    metadata_obj = results[i]
+                    if hasattr(metadata_obj, '__dict__'):
+                        result_dict = metadata_obj.__dict__.copy()
+                    elif hasattr(metadata_obj, '_asdict'):
+                        result_dict = metadata_obj._asdict()
+                    else:
+                        # Fallback: extract known fields
+                        result_dict = {"metadata": getattr(metadata_obj, "metadata", str(metadata_obj))}
+
+                    # Attach score from Vault
+                    result_dict["score"] = entry.get("score", 0.0)
+                    results_with_scores.append(result_dict)
+            return self._to_json_available({"ok": True, "results": results_with_scores})
         except Exception as e:
             return {"ok": False, "error": repr(e)}
 
