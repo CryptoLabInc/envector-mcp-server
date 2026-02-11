@@ -231,7 +231,10 @@ class EnVectorSDKAdapter:
             scores = index.scoring(query)  # List[CipherBlock] with is_score=True
             encoded_blobs = []
             for cb in scores:
-                encoded_blobs.append(cb.data._data)
+                # Serialize the CiphertextScore protobuf and encode to base64
+                serialized = cb.data.SerializeToString()
+                encoded_blob = base64.b64encode(serialized).decode('utf-8')
+                encoded_blobs.append(encoded_blob)
             return {"ok": True, "encrypted_blobs": encoded_blobs}
         except Exception as e:
             return {"ok": False, "error": repr(e)}
