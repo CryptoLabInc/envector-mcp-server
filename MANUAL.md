@@ -179,7 +179,7 @@ ENVECTOR_ENCRYPTED_QUERY="false"
 ENVECTOR_AUTO_KEY_SETUP="true"
 
 # Rune-Vault integration (optional)
-VAULT_MCP_ENDPOINT=""
+VAULT_ENDPOINT=""
 VAULT_TOKEN=""
 
 # Embedding mode
@@ -385,7 +385,7 @@ python srcs/server.py \
 ENVECTOR_AUTO_KEY_SETUP="false"
 
 # Vault integration (Option 1)
-VAULT_MCP_ENDPOINT="http://vault-mcp:50080/mcp"
+VAULT_ENDPOINT="http://vault-mcp:50080/mcp"
 VAULT_TOKEN="envector-team-alpha"
 
 # Pre-distributed keys (Option 2)
@@ -406,7 +406,7 @@ services:
   envector-mcp:
     image: envector/mcp-server:latest
     environment:
-      - VAULT_MCP_ENDPOINT=http://vault-mcp:50080/mcp
+      - VAULT_ENDPOINT=http://vault-mcp:50080/mcp
       - VAULT_TOKEN=${VAULT_TOKEN}
       - ENVECTOR_AUTO_KEY_SETUP=false
       - ENVECTOR_ADDRESS=envector-cloud:50050

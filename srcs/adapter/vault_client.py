@@ -314,7 +314,7 @@ def create_vault_client(
     Factory function to create Vault client from environment variables.
 
     Environment variables:
-    - VAULT_ENDPOINT: URL to Vault MCP (e.g., "http://vault:50080")
+    - VAULT_ENDPOINT: URL to Vault server (e.g., "http://vault:50080")
     - VAULT_TOKEN: Authentication token for Vault
 
     Args:

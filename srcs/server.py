@@ -629,7 +629,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--vault-endpoint",
-        default=os.getenv("VAULT_MCP_ENDPOINT", None),
+        default=os.getenv("VAULT_ENDPOINT", None),
         help="Rune-Vault MCP endpoint URL for fetching public keys (e.g., http://vault-mcp:50080/mcp).",
     )
     parser.add_argument(
