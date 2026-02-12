@@ -402,12 +402,13 @@ class MCPServerApp:
         )
         async def tool_remember(
             index_name: Annotated[str, Field(description="index name to remember from")],
-            query: Annotated[Any, Field(description="recall query: natural language text, vector (list of floats), or JSON-encoded vector")],
+            query: Annotated[Union[str, List[float]], Field(description="single recall query: natural language text or vector (list of floats)")],
             topk: Annotated[int, Field(description="number of results to recall (1-10, enforced by Vault policy)")],
             request_id: Annotated[str, Field(description="optional correlation ID for audit trail")] = "",
         ) -> Dict[str, Any]:
             """
             Recall organizational decisions and context from encrypted memory.
+            This tool accepts a SINGLE query only. For batch queries, use the search tool instead.
 
             Pipeline:
             1. Embed query, run encrypted similarity scoring on enVector Cloud → result ciphertext
@@ -416,7 +417,7 @@ class MCPServerApp:
 
             Args:
                 index_name (str): The name of index to recall from.
-                query (Union[List[float], List[List[float]]]): The recall query.
+                query (Union[str, List[float]]): Single recall query (text or vector).
                 topk (int): Number of top results (max 10, enforced by Vault).
                 request_id (str): Optional correlation ID for audit trail.
 
@@ -435,6 +436,12 @@ class MCPServerApp:
             except ValueError as exc:
                 return {"ok": False, "error": f"Query preprocessing failed: {exc}"}
 
+            if isinstance(preprocessed_query, list) and len(preprocessed_query) > 0 and isinstance(preprocessed_query[0], list):
+                return {
+                    "ok": False,
+                    "error": "Remember tool accepts single query only. Use search tool for batch queries."
+                }
+
             if topk > 10:
                 return {"ok": False, "error": "Policy: max top_k is 10."}
 
@@ -442,7 +449,7 @@ class MCPServerApp:
                 # Step 1: encrypted search → result ciphertext
                 scoring_result = self.envector.call_score(
                     index_name=index_name,
-                    query=preprocessed_query
+                    query=[preprocessed_query]
                 )
                 if not scoring_result.get("ok"):
                     return {"ok": False, "error": scoring_result.get("error"), "request_id": request_id or "N/A"}

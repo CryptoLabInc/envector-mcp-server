@@ -293,11 +293,22 @@ class VaultClientSync:
 
                 if response.status_code == 200:
                     result_data = response.json()
+
+                    # Extract tool result from MCP response
                     if "result" in result_data:
                         tool_result = result_data["result"]
                         if isinstance(tool_result, str):
                             tool_result = json.loads(tool_result)
                         return DecryptResult.from_dict(tool_result)
+                    elif "content" in result_data:
+                        # Alternative response format (FastMCP content format)
+                        content = result_data["content"]
+                        if isinstance(content, list) and len(content) > 0:
+                            text = content[0].get("text", "{}")
+                            return DecryptResult.from_dict(json.loads(text))
+
+                    # Unexpected format
+                    raise VaultError(f"Unexpected response format: {result_data}")
 
                 raise VaultError(f"Vault returned {response.status_code}: {response.text}")
 
