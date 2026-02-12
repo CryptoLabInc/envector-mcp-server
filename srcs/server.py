@@ -427,7 +427,7 @@ class MCPServerApp:
             if self.vault is None:
                 return {
                     "ok": False,
-                    "error": "Vault not configured. Set --vault-endpoint and --vault-token.",
+                    "error": "Vault not configured. Set RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN environment variables.",
                 }
 
 
@@ -611,11 +611,6 @@ if __name__ == "__main__":
         help="Encrypt the query vectors."
     )
     parser.add_argument(
-        "--envector-cloud-access-token",
-        default=os.getenv("ENVECTOR_API_KEY", None),
-        help="enVector cloud access token."
-    )
-    parser.add_argument(
         "--embedding-mode",
         default=os.getenv("EMBEDDING_MODE", "femb"),
         choices=("femb", "sbert", "hf", "openai"),
@@ -631,16 +626,6 @@ if __name__ == "__main__":
         "--no-auto-key-setup",
         action="store_true",
         help="Disable automatic key generation. Use when keys are provided externally (e.g., from Rune-Vault).",
-    )
-    parser.add_argument(
-        "--vault-endpoint",
-        default=os.getenv("RUNEVAULT_ENDPOINT", None),
-        help="Rune-Vault MCP endpoint URL for fetching public keys (e.g., http://vault-mcp:50080/mcp).",
-    )
-    parser.add_argument(
-        "--vault-token",
-        default=os.getenv("RUNEVAULT_TOKEN", None),
-        help="Authentication token for Rune-Vault.",
     )
     args = parser.parse_args()
     run_mode = args.mode.lower()
@@ -670,7 +655,7 @@ if __name__ == "__main__":
     - ENVECTOR_EVAL_MODE: The evaluation mode of the `enVector` ["rmp", "mm"] (default: "rmp")
     """
     ENVECTOR_ADDRESS = args.envector_address if args.envector_address else args.envector_host + ":" + str(args.envector_port)
-    ENVECTOR_API_KEY = args.ENVECTOR_API_KEY
+    ENVECTOR_API_KEY = os.getenv("ENVECTOR_API_KEY", None)
     ENVECTOR_KEY_ID = args.envector_key_id
     ENVECTOR_KEY_PATH = args.envector_key_path
     ENVECTOR_EVAL_MODE = args.envector_eval_mode
@@ -680,8 +665,8 @@ if __name__ == "__main__":
     # env var default "true" → auto-generation ON; CLI --no-auto-key-setup overrides to OFF
     _env_var = os.getenv("ENVECTOR_AUTO_KEY_SETUP", "true").lower() in ("true", "1", "yes")
     AUTO_KEY_SETUP = _env_var and not args.no_auto_key_setup
-    RUNEVAULT_ENDPOINT = args.vault_endpoint
-    RUNEVAULT_TOKEN = args.vault_token
+    RUNEVAULT_ENDPOINT = os.getenv("RUNEVAULT_ENDPOINT", None)
+    RUNEVAULT_TOKEN = os.getenv("RUNEVAULT_TOKEN", None)
 
     # If Vault endpoint is provided, fetch keys from Vault
     if RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN:
@@ -732,7 +717,7 @@ if __name__ == "__main__":
         print("[Rune] Vault client initialized - remember tool available")
     else:
         print("[Rune] Vault not configured - remember tool will be unavailable")
-        print("[Rune] To enable remember, set --vault-endpoint and --vault-token")
+        print("[Rune] To enable remember, set RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN environment variables")
 
     app = MCPServerApp(
         mcp_server_name=MCP_SERVER_NAME,

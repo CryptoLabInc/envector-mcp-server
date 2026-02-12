@@ -24,8 +24,8 @@ This document let users know how to use `enVector MCP Server`
 - `get_index_info`: Get information about a specific index in enVector.
 - `create_index`: Create an index in enVector.
 - `insert`: Insert vectors and the corresponding metadata into enVector index. Support to specify embedding model to get embedding vectors to insert.
-- `search`: Perform vector search and Retrieve Metadata from enVector. Support to specify embedding model to get embedding vectors to search.
-- `remember`: Vault-secured organizational memory recall. Orchestrates a 3-step pipeline: (1) homomorphic search on encrypted index, (2) Vault decryption of result ciphertext + top-k selection, (3) metadata retrieval. Requires `--vault-endpoint` and `--vault-token`.
+- `search`: Perform homomorphic encrypted vector similarity search and Retrieve Metadata from enVector. Support to specify embedding model to get embedding vectors to search.
+- `remember`: Vault-secured organizational memory recall. Orchestrates a 3-step pipeline: (1) homomorphic encrypted vector similarity search on encrypted index, (2) Vault decryption of result ciphertext + top-k selection, (3) metadata retrieval. Requires `RUNEVAULT_ENDPOINT` and `RUNEVAULT_TOKEN` environment variables.
 - `vault_status`: Check Rune-Vault connection status and security mode.
 - `insert_documents_from_path`: Insert documents from the given path. Support to read and chunk the document file, get embedding of texts and insert them into enVector.
 - `insert_documents_from_text`: Insert documents from the given texts. Support to chunk the document file, get embedding of texts and insert them into enVector.
@@ -72,13 +72,13 @@ Configurate your config files (e.g. `/path/to/Claude/claude_desktop_config.json`
                 "/path/to/envector-mcp-server/srcs/server.py",
                 "--mode",
                 "http",
-                "--envector-address",
-                "cluster-xxx.clusters.envector.io",
-                "--envector-api-key",
-                "YOUR_API_KEY",
                 "--envector-key-path",
                 "/path/to/keys"
             ],
+            "env": {
+                "ENVECTOR_ADDRESS": "cluster-xxx.clusters.envector.io",
+                "ENVECTOR_API_KEY": "YOUR_API_KEY"
+            },
             "cwd": "/path/to/envector-mcp-server",
             "description": "enVector MCP server stores the user's vector data and their corresponding metadata for semantic search."
         },
@@ -94,13 +94,14 @@ Run the following Python script in `/path/to/envector-mcp-server/`:
 
 ```bash
 # Remote HTTP mode (default) - enVector Cloud
+export ENVECTOR_ADDRESS="cluster-xxx.clusters.envector.io"
+export ENVECTOR_API_KEY="YOUR_API_KEY"
+
 python srcs/server.py \
     --mode "http" \
     --host "localhost" \
     --port "8000" \
     --server-name "envector_mcp_server" \
-    --envector-address "cluster-xxx.clusters.envector.io" \
-    --envector-api-key "YOUR_API_KEY" \
     --envector-key-id "mcp_key" \
     --envector-key-path "/path/to/keys" \
     --embedding-mode "femb" \
@@ -128,8 +129,8 @@ Arguments to run Python scripts:
     - `--server-name`: MCP server name. The default is `envector_mcp_server`.
 
 - 🔌 enVector connection
-    - `--envector-address`: enVector endpoint address (`{host}:{port}` or enVector Cloud endpoint ends with `.clusters.envector.io`).
-    - `--envector-cloud-access-token`: access token of enVector Cloud.
+    - `--envector-address` or `ENVECTOR_ADDRESS`: enVector endpoint address (`{host}:{port}` or enVector Cloud endpoint ends with `.clusters.envector.io`). For Cloud, prefer environment variable.
+    - `ENVECTOR_API_KEY` (env var only): access token of enVector Cloud.
 
 - 🔑 enVector options
     - `--envector-key-id`: enVector key id (identifier).
@@ -140,11 +141,13 @@ Arguments to run Python scripts:
 
     > ⚠️ **Note**: MCP server holds the key for homomorphic encryption as MCP server is a enVector Client.
 
-- 🔐 Rune-Vault Integration (Optional)
-    - `--vault-endpoint`: Rune-Vault MCP endpoint URL for fetching public keys.
-    - `--vault-token`: Authentication token for Rune-Vault.
+- 🔐 Rune-Vault Integration (Optional, env var only)
+    - `RUNEVAULT_ENDPOINT`: Rune-Vault MCP endpoint URL for fetching public keys.
+    - `RUNEVAULT_TOKEN`: Authentication token for Rune-Vault.
 
     > 💡 **Rune Integration**: When integrated with Rune, the Vault MCP manages cryptographic keys centrally. The envector-mcp-server fetches public keys (EncKey, EvalKey) from Vault at startup, while secret key remains securely in Vault for decryption operations. See [Rune Architecture](#rune-integration) for details.
+
+    > ⚠️ **Security**: Credentials (`ENVECTOR_API_KEY`, `RUNEVAULT_TOKEN`) must be provided via environment variables only.
 
 - ⚙️ Embedding options
     - `--embedding-mode`: Mode of the embedding model. Supports `femb` (FastEmb), `hf` (huggingface), `sbert` (SBERT; sentence-transformers), and `openai` (OpenAI API). For `openai`, required to set environmental variable `OPENAI_API_KEY`.
@@ -362,23 +365,25 @@ When used with [Rune](https://github.com/CryptoLabInc/rune), the envector-mcp-se
 #### Option 1: Fetch keys from Rune-Vault at startup (Recommended)
 
 ```bash
+export ENVECTOR_ADDRESS="cluster-xxx.clusters.envector.io"
+export ENVECTOR_API_KEY="YOUR_API_KEY"
+export RUNEVAULT_ENDPOINT="http://vault-mcp:50080/mcp"
+export RUNEVAULT_TOKEN="envector-team-alpha"
+
 python srcs/server.py \
     --mode "http" \
-    --envector-address "cluster-xxx.clusters.envector.io" \
-    --envector-api-key "YOUR_API_KEY" \
-    --vault-endpoint "http://vault-mcp:50080/mcp" \
-    --vault-token "envector-team-alpha" \
     --no-auto-key-setup
 ```
 
 #### Option 2: Use pre-distributed keys
 
 ```bash
+export ENVECTOR_ADDRESS="cluster-xxx.clusters.envector.io"
+export ENVECTOR_API_KEY="YOUR_API_KEY"
+
 # Keys are pre-distributed to /shared/keys by Vault or deployment pipeline
 python srcs/server.py \
     --mode "http" \
-    --envector-address "cluster-xxx.clusters.envector.io" \
-    --envector-api-key "YOUR_API_KEY" \
     --envector-key-path "/shared/keys" \
     --no-auto-key-setup
 ```
