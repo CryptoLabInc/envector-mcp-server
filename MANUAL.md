@@ -73,7 +73,9 @@ Configurate your config files (e.g. `/path/to/Claude/claude_desktop_config.json`
                 "--mode",
                 "http",
                 "--envector-address",
-                "ENVECTORHOST:50050",
+                "cluster-xxx.clusters.envector.io",
+                "--envector-api-key",
+                "YOUR_API_KEY",
                 "--envector-key-path",
                 "/path/to/keys"
             ],
@@ -91,13 +93,14 @@ Note that, some AI service providers including Claude Desktop have an option tha
 Run the following Python script in `/path/to/envector-mcp-server/`:
 
 ```bash
-# Remote HTTP mode (default)
+# Remote HTTP mode (default) - enVector Cloud
 python srcs/server.py \
     --mode "http" \
     --host "localhost" \
     --port "8000" \
     --server-name "envector_mcp_server" \
-    --envector-address "ENVECTORHOST:50050" \
+    --envector-address "cluster-xxx.clusters.envector.io" \
+    --envector-api-key "YOUR_API_KEY" \
     --envector-key-id "mcp_key" \
     --envector-key-path "/path/to/keys" \
     --embedding-mode "femb" \
@@ -167,8 +170,8 @@ MCP_SERVER_MODE="http"
 MCP_SERVER_ADDRESS="127.0.0.1:8000"
 MCP_SERVER_NAME="envector_mcp_server"
 
-# enVector connection
-ENVECTOR_ADDRESS="localhost:50050"
+# enVector Cloud
+ENVECTOR_ADDRESS="cluster-xxx.clusters.envector.io"
 ENVECTOR_API_KEY=""
 
 # enVector options
@@ -178,7 +181,7 @@ ENVECTOR_EVAL_MODE="rmp"
 ENVECTOR_ENCRYPTED_QUERY="false"
 ENVECTOR_AUTO_KEY_SETUP="true"
 
-# Rune-Vault integration (optional)
+# Rune-Vault information
 RUNEVAULT_ENDPOINT=""
 RUNEVAULT_TOKEN=""
 
@@ -361,7 +364,8 @@ When used with [Rune](https://github.com/CryptoLabInc/rune), the envector-mcp-se
 ```bash
 python srcs/server.py \
     --mode "http" \
-    --envector-address "envector-cloud.example.com:50050" \
+    --envector-address "cluster-xxx.clusters.envector.io" \
+    --envector-api-key "YOUR_API_KEY" \
     --vault-endpoint "http://vault-mcp:50080/mcp" \
     --vault-token "envector-team-alpha" \
     --no-auto-key-setup
@@ -373,7 +377,8 @@ python srcs/server.py \
 # Keys are pre-distributed to /shared/keys by Vault or deployment pipeline
 python srcs/server.py \
     --mode "http" \
-    --envector-address "envector-cloud.example.com:50050" \
+    --envector-address "cluster-xxx.clusters.envector.io" \
+    --envector-api-key "YOUR_API_KEY" \
     --envector-key-path "/shared/keys" \
     --no-auto-key-setup
 ```
@@ -409,7 +414,8 @@ services:
       - RUNEVAULT_ENDPOINT=http://vault-mcp:50080/mcp
       - RUNEVAULT_TOKEN=${RUNEVAULT_TOKEN}
       - ENVECTOR_AUTO_KEY_SETUP=false
-      - ENVECTOR_ADDRESS=envector-cloud:50050
+      - ENVECTOR_ADDRESS=cluster-xxx.clusters.envector.io
+      - ENVECTOR_API_KEY=${ENVECTOR_API_KEY}
     depends_on:
       - vault-mcp
 ```
