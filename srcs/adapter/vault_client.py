@@ -314,22 +314,22 @@ def create_vault_client(
     Factory function to create Vault client from environment variables.
 
     Environment variables:
-    - VAULT_ENDPOINT: URL to Vault server (e.g., "http://vault:50080")
-    - VAULT_TOKEN: Authentication token for Vault
+    - RUNEVAULT_ENDPOINT: URL to Vault server (e.g., "http://vault:50080")
+    - RUNEVAULT_TOKEN: Authentication token for Vault
 
     Args:
-        vault_endpoint: Override for VAULT_ENDPOINT
-        vault_token: Override for VAULT_TOKEN
+        vault_endpoint: Override for RUNEVAULT_ENDPOINT
+        vault_token: Override for RUNEVAULT_TOKEN
         async_mode: If True, return async client; else sync client
 
     Returns:
         VaultClient or VaultClientSync if configured, None otherwise
     """
-    endpoint = vault_endpoint or os.getenv("VAULT_ENDPOINT")
-    token = vault_token or os.getenv("VAULT_TOKEN")
+    endpoint = vault_endpoint or os.getenv("RUNEVAULT_ENDPOINT")
+    token = vault_token or os.getenv("RUNEVAULT_TOKEN")
 
     if not endpoint or not token:
-        logger.info("Vault not configured (VAULT_ENDPOINT or VAULT_TOKEN missing)")
+        logger.info("Rune-Vault not configured (RUNEVAULT_ENDPOINT or RUNEVAULT_TOKEN missing)")
         return None
 
     if async_mode:

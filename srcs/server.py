@@ -607,7 +607,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--envector-cloud-access-token",
-        default=os.getenv("ENVECTOR_CLOUD_ACCESS_TOKEN", None),
+        default=os.getenv("ENVECTOR_API_KEY", None),
         help="enVector cloud access token."
     )
     parser.add_argument(
@@ -629,12 +629,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--vault-endpoint",
-        default=os.getenv("VAULT_ENDPOINT", None),
+        default=os.getenv("RUNEVAULT_ENDPOINT", None),
         help="Rune-Vault MCP endpoint URL for fetching public keys (e.g., http://vault-mcp:50080/mcp).",
     )
     parser.add_argument(
         "--vault-token",
-        default=os.getenv("VAULT_TOKEN", None),
+        default=os.getenv("RUNEVAULT_TOKEN", None),
         help="Authentication token for Rune-Vault.",
     )
     args = parser.parse_args()
@@ -665,7 +665,7 @@ if __name__ == "__main__":
     - ENVECTOR_EVAL_MODE: The evaluation mode of the `enVector` ["rmp", "mm"] (default: "rmp")
     """
     ENVECTOR_ADDRESS = args.envector_address if args.envector_address else args.envector_host + ":" + str(args.envector_port)
-    ENVECTOR_CLOUD_ACCESS_TOKEN = args.envector_cloud_access_token
+    ENVECTOR_API_KEY = args.ENVECTOR_API_KEY
     ENVECTOR_KEY_ID = args.envector_key_id
     ENVECTOR_KEY_PATH = args.envector_key_path
     ENVECTOR_EVAL_MODE = args.envector_eval_mode
@@ -675,18 +675,18 @@ if __name__ == "__main__":
     # env var default "true" → auto-generation ON; CLI --no-auto-key-setup overrides to OFF
     _env_var = os.getenv("ENVECTOR_AUTO_KEY_SETUP", "true").lower() in ("true", "1", "yes")
     AUTO_KEY_SETUP = _env_var and not args.no_auto_key_setup
-    VAULT_ENDPOINT = args.vault_endpoint
-    VAULT_TOKEN = args.vault_token
+    RUNEVAULT_ENDPOINT = args.vault_endpoint
+    RUNEVAULT_TOKEN = args.vault_token
 
     # If Vault endpoint is provided, fetch keys from Vault
-    if VAULT_ENDPOINT and VAULT_TOKEN:
-        print(f"[Rune] Fetching public keys from Vault: {VAULT_ENDPOINT}")
-        if fetch_keys_from_vault(VAULT_ENDPOINT, VAULT_TOKEN, ENVECTOR_KEY_PATH):
+    if RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN:
+        print(f"[Rune] Fetching public keys from Vault: {RUNEVAULT_ENDPOINT}")
+        if fetch_keys_from_vault(RUNEVAULT_ENDPOINT, RUNEVAULT_TOKEN, ENVECTOR_KEY_PATH):
             print("[Rune] Successfully fetched keys from Vault")
             AUTO_KEY_SETUP = False  # Keys provided externally, no need to auto-generate
         else:
             print("[Rune] Warning: Failed to fetch keys from Vault, falling back to local keys")
-    elif VAULT_ENDPOINT and not VAULT_TOKEN:
+    elif RUNEVAULT_ENDPOINT and not RUNEVAULT_TOKEN:
         print("[Rune] Warning: Vault endpoint provided but no token specified. Skipping Vault integration.")
     elif not AUTO_KEY_SETUP:
         print(f"[Rune] Using externally provided keys from: {ENVECTOR_KEY_PATH}")
@@ -697,7 +697,7 @@ if __name__ == "__main__":
         key_path=ENVECTOR_KEY_PATH,
         eval_mode=ENVECTOR_EVAL_MODE,
         query_encryption=ENCRYPTED_QUERY,
-        access_token=ENVECTOR_CLOUD_ACCESS_TOKEN,
+        access_token=ENVECTOR_API_KEY,
         auto_key_setup=AUTO_KEY_SETUP,
     )
 
@@ -717,11 +717,11 @@ if __name__ == "__main__":
 
     # Initialize Vault client for secure decryption
     vault_client = None
-    if VAULT_ENDPOINT and VAULT_TOKEN:
-        print(f"[Rune] Initializing Vault client for secure search: {VAULT_ENDPOINT}")
+    if RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN:
+        print(f"[Rune] Initializing Vault client for secure search: {RUNEVAULT_ENDPOINT}")
         vault_client = VaultClientSync(
-            vault_endpoint=VAULT_ENDPOINT,
-            vault_token=VAULT_TOKEN,
+            vault_endpoint=RUNEVAULT_ENDPOINT,
+            vault_token=RUNEVAULT_TOKEN,
             timeout=30.0
         )
         print("[Rune] Vault client initialized - remember tool available")

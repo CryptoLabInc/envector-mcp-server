@@ -169,7 +169,7 @@ MCP_SERVER_NAME="envector_mcp_server"
 
 # enVector connection
 ENVECTOR_ADDRESS="localhost:50050"
-ENVECTOR_CLOUD_ACCESS_TOKEN=""
+ENVECTOR_API_KEY=""
 
 # enVector options
 ENVECTOR_KEY_ID="mcp_key"
@@ -179,8 +179,8 @@ ENVECTOR_ENCRYPTED_QUERY="false"
 ENVECTOR_AUTO_KEY_SETUP="true"
 
 # Rune-Vault integration (optional)
-VAULT_ENDPOINT=""
-VAULT_TOKEN=""
+RUNEVAULT_ENDPOINT=""
+RUNEVAULT_TOKEN=""
 
 # Embedding mode
 EMBEDDING_MODE="femb"
@@ -384,9 +384,9 @@ python srcs/server.py \
 # Disable auto key generation
 ENVECTOR_AUTO_KEY_SETUP="false"
 
-# Vault integration (Option 1)
-VAULT_ENDPOINT="http://vault-mcp:50080/mcp"
-VAULT_TOKEN="envector-team-alpha"
+# Rune-Vault integration (Option 1)
+RUNEVAULT_ENDPOINT="http://vault-mcp:50080/mcp"
+RUNEVAULT_TOKEN="envector-team-alpha"
 
 # Pre-distributed keys (Option 2)
 ENVECTOR_KEY_PATH="/shared/keys"
@@ -397,7 +397,7 @@ ENVECTOR_KEY_PATH="/shared/keys"
 ```yaml
 services:
   vault-mcp:
-    image: hiveminded/vault-mcp:latest
+    image: rune/vault-mcp:latest
     volumes:
       - vault_keys:/secure/keys
     ports:
@@ -406,8 +406,8 @@ services:
   envector-mcp:
     image: envector/mcp-server:latest
     environment:
-      - VAULT_ENDPOINT=http://vault-mcp:50080/mcp
-      - VAULT_TOKEN=${VAULT_TOKEN}
+      - RUNEVAULT_ENDPOINT=http://vault-mcp:50080/mcp
+      - RUNEVAULT_TOKEN=${RUNEVAULT_TOKEN}
       - ENVECTOR_AUTO_KEY_SETUP=false
       - ENVECTOR_ADDRESS=envector-cloud:50050
     depends_on:
