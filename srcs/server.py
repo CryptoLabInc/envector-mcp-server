@@ -464,8 +464,6 @@ class MCPServerApp:
                     top_k=topk,
                     request_id=request_id or None
                 )
-                if not vault_result.ok:
-                    return {"ok": False, "error": f"Vault: {vault_result.error}", "request_id": vault_result.request_id}
 
                 # Step 3: Retrieve metadata
                 metadata_result = self.envector.call_remind(
