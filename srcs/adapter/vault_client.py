@@ -390,6 +390,9 @@ class VaultClientSync:
 
                 raise VaultError(f"Vault returned {response.status_code}: {response.text}")
 
+        except VaultError:
+            # Preserve existing VaultError instances without double-wrapping
+            raise
         except Exception as e:
             raise VaultError(f"Failed to call Vault: {e}")
 
