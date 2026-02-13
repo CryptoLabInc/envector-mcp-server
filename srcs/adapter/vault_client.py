@@ -15,6 +15,7 @@ import json
 import uuid
 import time
 import logging
+import asyncio
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 
@@ -215,7 +216,6 @@ class VaultClient:
 
     async def _async_sleep(self, seconds: float):
         """Async sleep helper."""
-        import asyncio
         await asyncio.sleep(seconds)
 
     async def health_check(self) -> bool:
