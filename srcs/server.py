@@ -15,10 +15,13 @@ Expected MCP Tool Return Format:
 """
 
 import argparse
+import logging
 from typing import Union, List, Dict, Any, Optional, Annotated, TYPE_CHECKING
 import numpy as np
 import os, sys, signal
 import json
+
+logger = logging.getLogger("rune.mcp")
 from pydantic import Field
 # load environment variables from .env file if present
 from dotenv import load_dotenv
@@ -76,12 +79,12 @@ def fetch_keys_from_vault(vault_endpoint: str, vault_token: str, key_path: str) 
                         filepath = os.path.join(key_path, filename)
                         with open(filepath, 'w') as f:
                             f.write(key_content)
-                        print(f"[Vault] Saved {filename} to {filepath}")
+                        logger.info(f"Saved {filename} to {filepath}")
 
                     return True
 
         except Exception as e:
-            print(f"[Vault] Failed to fetch keys from Vault: {e}")
+            logger.error(f"Failed to fetch keys from Vault: {e}")
             return False
 
         return False
@@ -684,16 +687,16 @@ if __name__ == "__main__":
 
     # If Vault endpoint is provided, fetch keys from Vault
     if RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN:
-        print(f"[Rune] Fetching public keys from Vault: {RUNEVAULT_ENDPOINT}")
+        logger.info(f"Fetching public keys from Vault: {RUNEVAULT_ENDPOINT}")
         if fetch_keys_from_vault(RUNEVAULT_ENDPOINT, RUNEVAULT_TOKEN, ENVECTOR_KEY_PATH):
-            print("[Rune] Successfully fetched keys from Vault")
+            logger.info("Successfully fetched keys from Vault")
             AUTO_KEY_SETUP = False  # Keys provided externally, no need to auto-generate
         else:
-            print("[Rune] Warning: Failed to fetch keys from Vault, falling back to local keys")
+            logger.warning("Failed to fetch keys from Vault, falling back to local keys")
     elif RUNEVAULT_ENDPOINT and not RUNEVAULT_TOKEN:
-        print("[Rune] Warning: Vault endpoint provided but no token specified. Skipping Vault integration.")
+        logger.warning("Vault endpoint provided but no token specified. Skipping Vault integration.")
     elif not AUTO_KEY_SETUP:
-        print(f"[Rune] Using externally provided keys from: {ENVECTOR_KEY_PATH}")
+        logger.info(f"Using externally provided keys from: {ENVECTOR_KEY_PATH}")
 
     envector_adapter = EnVectorSDKAdapter(
         address=ENVECTOR_ADDRESS,
@@ -714,7 +717,7 @@ if __name__ == "__main__":
             model_name=args.embedding_model
         )
     else:
-        # print("[WARN] No embedding model specified. Proceeding without embedding adapter.")
+        # logger.warning("No embedding model specified. Proceeding without embedding adapter.")
         embedding_adapter = None
 
     document_preprocessor = DocumentPreprocessingAdapter()
@@ -722,16 +725,16 @@ if __name__ == "__main__":
     # Initialize Vault client for secure decryption
     vault_client = None
     if RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN:
-        print(f"[Rune] Initializing Vault client for secure search: {RUNEVAULT_ENDPOINT}")
+        logger.info(f"Initializing Vault client for secure search: {RUNEVAULT_ENDPOINT}")
         vault_client = VaultClientSync(
             vault_endpoint=RUNEVAULT_ENDPOINT,
             vault_token=RUNEVAULT_TOKEN,
             timeout=30.0
         )
-        print("[Rune] Vault client initialized - remember tool available")
+        logger.info("Vault client initialized - remember tool available")
     else:
-        print("[Rune] Vault not configured - remember tool will be unavailable")
-        print("[Rune] To enable remember, set RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN environment variables")
+        logger.info("Vault not configured - remember tool will be unavailable")
+        logger.info("To enable remember, set RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN environment variables")
 
     app = MCPServerApp(
         mcp_server_name=MCP_SERVER_NAME,
