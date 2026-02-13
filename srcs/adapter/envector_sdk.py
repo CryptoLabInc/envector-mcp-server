@@ -263,10 +263,17 @@ class EnVectorSDKAdapter:
 
             index = ev.Index(index_name)
             # Indexer.get_metadata expects [{"shard_idx": int, "row_idx": int}]
-            idx_list = [
-                {"shard_idx": entry.get("shard_idx", 0), "row_idx": entry["row_idx"]}
-                for entry in indices
-            ]
+            idx_list = []
+            for entry in indices:
+                row_idx = entry.get("row_idx")
+                if row_idx is None:
+                    raise ValueError("Missing required 'row_idx' in index entry: " + repr(entry))
+                idx_list.append(
+                    {
+                        "shard_idx": entry.get("shard_idx", 0),
+                        "row_idx": row_idx,
+                    }
+                )
             results = index.indexer.get_metadata(
                 index_name=index_name,
                 idx=idx_list,
