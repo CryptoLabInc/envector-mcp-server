@@ -17,6 +17,7 @@ from fastmcp import Client
 from fastmcp.exceptions import ToolError
 from server import MCPServerApp
 from adapter import EnVectorSDKAdapter, EmbeddingAdapter
+from adapter.vault_client import VaultClientSync, DecryptResult
 
 # embedding fake adapter
 class FakeEmbeddingAdapter(EmbeddingAdapter):
@@ -276,3 +277,211 @@ async def test_call_tool_happy_path(mcp_server):
         assert data.get("results", [{}])[0].get("metadata", {}).get("fieldA") == "valueA"
 
 # ----------- Search Tool Tests Finished ----------- #
+
+
+# =========================================================================== #
+#  Fake Vault Client for testing remember / vault_status tools
+# =========================================================================== #
+
+class FakeVaultClientSync(VaultClientSync):
+    """Fake Vault client that returns deterministic results without HTTP calls."""
+    def __init__(self):
+        # Skip real __init__ to avoid network setup
+        self.vault_endpoint = "http://fake-vault:50080"
+        self.vault_token = "fake-token"
+        self.timeout = 5.0
+
+    def decrypt_search_results(
+        self,
+        encrypted_blob_b64: str,
+        top_k: int = 5,
+        request_id: Optional[str] = None,
+    ) -> DecryptResult:
+        return DecryptResult(
+            ok=True,
+            results=[
+                {"shard_idx": 0, "row_idx": 0, "score": 0.95},
+                {"shard_idx": 0, "row_idx": 1, "score": 0.80},
+            ][:top_k],
+            request_id=request_id or "fake_req_001",
+            timestamp=1700000000.0,
+            total_vectors=100,
+        )
+
+
+@pytest.fixture
+def mcp_server_with_vault():
+    """
+    MCP server fixture with a fake Vault client injected,
+    enabling the `remember` and `vault_status` tools.
+    """
+    class FakeAdapterWithVault(EnVectorSDKAdapter):
+        def __init__(self):
+            pass
+
+        # --- existing mocked methods (same as FakeAdapter) ---
+        def invoke_get_index_list(self) -> List[str]:
+            return ["index_a", "index_b"]
+
+        def invoke_get_index_info(self, index_name: str) -> Dict[str, Any]:
+            if index_name not in ("index_a", "index_b"):
+                raise ValueError(f"Index '{index_name}' not found")
+            return {"index_name": index_name, "dim": 128, "row_count": 42}
+
+        def invoke_create_index(self, index_name: str, dim: int, index_params: Dict[str, Any] = None) -> Dict[str, Any]:
+            return {"index_name": index_name, "dim": dim, "index_params": index_params}
+
+        def invoke_insert(self, index_name: str, vectors, metadata=None):
+            return {"index_name": index_name, "vectors": vectors, "metadata": metadata}
+
+        def invoke_search(self, index_name: str, query, topk: int):
+            return [{"id": 1, "score": 0.9, "metadata": {"fieldA": "valueA"}}]
+
+        # --- new remember (score + remind) pipeline mocks ---
+        def call_score(self, index_name: str, query) -> Dict[str, Any]:
+            return {"ok": True, "encrypted_blobs": ["ZmFrZV9ibG9i"]}
+
+        def call_remind(self, index_name: str, indices: List[Dict[str, Any]], output_fields=None) -> Dict[str, Any]:
+            results = [{"metadata": f"memory_{entry['shard_idx']}_{entry['row_idx']}", "score": entry.get("score", 0.0)} for entry in indices]
+            return {"ok": True, "results": results}
+
+    app = MCPServerApp(
+        envector_adapter=FakeAdapterWithVault(),
+        mcp_server_name="test-mcp-vault",
+        embedding_adapter=FakeEmbeddingAdapter(),
+        vault_client=FakeVaultClientSync(),
+    )
+    return app.mcp
+
+
+# ----------- Vault Status Tool Tests ----------- #
+
+@pytest.mark.asyncio
+async def test_tools_list_contains_vault_status(mcp_server_with_vault):
+    async with Client(mcp_server_with_vault) as client:
+        tools = await client.list_tools()
+        names = [t.name for t in tools]
+        assert "vault_status" in names
+
+
+@pytest.mark.asyncio
+async def test_vault_status_with_vault_configured(mcp_server_with_vault):
+    async with Client(mcp_server_with_vault) as client:
+        result = await client.call_tool("vault_status", {})
+        data = getattr(result, "data", None) or getattr(result, "structured", None) \
+               or getattr(result, "structured_content", None)
+
+        assert data is not None, "No data returned from tool call"
+        assert data.get("ok") is True
+        assert data.get("vault_configured") is True
+        assert data.get("secure_search_available") is True
+        assert data.get("mode") == "secure (Vault-backed)"
+
+
+@pytest.mark.asyncio
+async def test_vault_status_without_vault(mcp_server):
+    """When no vault_client is injected the tool should report standard mode."""
+    async with Client(mcp_server) as client:
+        result = await client.call_tool("vault_status", {})
+        data = getattr(result, "data", None) or getattr(result, "structured", None) \
+               or getattr(result, "structured_content", None)
+
+        assert data is not None, "No data returned from tool call"
+        assert data.get("ok") is True
+        assert data.get("vault_configured") is False
+        assert data.get("secure_search_available") is False
+
+
+# ----------- Remember Tool Tests ----------- #
+
+@pytest.mark.asyncio
+async def test_tools_list_contains_remember(mcp_server_with_vault):
+    async with Client(mcp_server_with_vault) as client:
+        tools = await client.list_tools()
+        names = [t.name for t in tools]
+        assert "remember" in names
+
+
+@pytest.mark.asyncio
+async def test_remember_happy_path(mcp_server_with_vault):
+    async with Client(mcp_server_with_vault) as client:
+        result = await client.call_tool(
+            "remember",
+            {
+                "index_name": "index_a",
+                "query": [0.1, 0.2, 0.3],
+                "topk": 2,
+                "request_id": "test_req_001",
+            }
+        )
+        data = getattr(result, "data", None) or getattr(result, "structured", None) \
+               or getattr(result, "structured_content", None)
+
+        assert data is not None, "No data returned from tool call"
+        assert data.get("ok") is True
+        assert isinstance(data.get("results"), list)
+        assert len(data["results"]) == 2
+        assert data.get("request_id") == "test_req_001"
+        assert data.get("total_vectors") == 100
+
+
+@pytest.mark.asyncio
+async def test_remember_with_text_query(mcp_server_with_vault):
+    """When a text query is given, the embedding adapter should be used."""
+    async with Client(mcp_server_with_vault) as client:
+        result = await client.call_tool(
+            "remember",
+            {
+                "index_name": "index_a",
+                "query": "what was the last decision?",
+                "topk": 1,
+            }
+        )
+        data = getattr(result, "data", None) or getattr(result, "structured", None) \
+               or getattr(result, "structured_content", None)
+
+        assert data is not None, "No data returned from tool call"
+        assert data.get("ok") is True
+
+
+@pytest.mark.asyncio
+async def test_remember_topk_exceeds_limit(mcp_server_with_vault):
+    """topk > 10 should be rejected by policy."""
+    async with Client(mcp_server_with_vault) as client:
+        result = await client.call_tool(
+            "remember",
+            {
+                "index_name": "index_a",
+                "query": [0.1, 0.2, 0.3],
+                "topk": 11,
+            }
+        )
+        data = getattr(result, "data", None) or getattr(result, "structured", None) \
+               or getattr(result, "structured_content", None)
+
+        assert data is not None, "No data returned from tool call"
+        assert data.get("ok") is False
+        assert "max" in data.get("error", "").lower() or "10" in data.get("error", "")
+
+
+@pytest.mark.asyncio
+async def test_remember_without_vault(mcp_server):
+    """When vault is not configured, remember should return an error."""
+    async with Client(mcp_server) as client:
+        result = await client.call_tool(
+            "remember",
+            {
+                "index_name": "index_a",
+                "query": [0.1, 0.2, 0.3],
+                "topk": 3,
+            }
+        )
+        data = getattr(result, "data", None) or getattr(result, "structured", None) \
+               or getattr(result, "structured_content", None)
+
+        assert data is not None, "No data returned from tool call"
+        assert data.get("ok") is False
+        assert "vault" in data.get("error", "").lower()
+
+
+# ----------- Remember / Vault Status Tool Tests Finished ----------- #

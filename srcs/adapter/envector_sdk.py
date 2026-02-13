@@ -1,9 +1,11 @@
 # Summary of file: enVector SDK Adapter(enVector APIs Caller)
 
 from typing import Union, List, Dict, Any
+import base64
 import numpy as np
 import pyenvector as ev  # pip install pyenvector
 from pyenvector.crypto.block import CipherBlock
+from google.protobuf.json_format import MessageToDict
 
 from pathlib import Path
 
@@ -22,18 +24,25 @@ class EnVectorSDKAdapter:
             eval_mode: str,
             query_encryption: bool,
             access_token: str = None,
+            auto_key_setup: bool = True,
         ):
         """
         Initializes the EnVectorSDKAdapter with an optional endpoint.
 
         Args:
-            endpoint (Optional[str]): The endpoint URL for the enVector SDK.
-            port (Optional[int]): The port number for the enVector SDK.
+            address (str): The endpoint URL for the enVector SDK.
+            key_id (str): The key identifier for the enVector SDK.
+            key_path (str): The path to the key files.
+            eval_mode (str): The evaluation mode for the enVector SDK.
+            query_encryption (bool): Whether to encrypt the query vectors.
+            access_token (str, optional): The access token for the enVector SDK.
+            auto_key_setup (bool): If True, generates keys automatically when not found.
+                                   Set to False when keys are provided externally (e.g., from Vault).
         """
         if not key_path:
             key_path = str(KEY_PATH)
         self.query_encryption = query_encryption
-        ev.init(address=address, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=True, access_token=access_token)
+        ev.init(address=address, key_path=key_path, key_id=key_id, eval_mode=eval_mode, auto_key_setup=auto_key_setup, access_token=access_token)
 
     #------------------- Create Index ------------------#
 
@@ -202,6 +211,95 @@ class EnVectorSDKAdapter:
         index = ev.Index(index_name)  # Create an index instance with the given index name
         # Search with the provided query and topk. Fixed output_fields parameter for now.
         return index.search(query, top_k=topk, output_fields=["metadata"])
+
+    #------------------- Remember (Vault-Secured Pipeline) ------------------#
+
+    def call_score(
+        self, index_name: str, query: Union[List[float], List[List[float]]]
+    ) -> Dict[str, Any]:
+        """
+        Query against the encrypted index and returns the result ciphertext for Vault decryption.
+
+        Args:
+            index_name: Index to search.
+            query: Query vector(s).
+
+        Returns:
+            Dict with ok, encrypted_blobs (List[str] of base64-encoded CiphertextScore protobuf), or error.
+        """
+        try:
+            index = ev.Index(index_name)
+            scores = index.scoring(query)  # List[CipherBlock] with is_score=True
+            encoded_blobs = []
+            for cb in scores:
+                # Serialize the CiphertextScore protobuf and encode to base64
+                serialized = cb.data.SerializeToString()
+                encoded_blob = base64.b64encode(serialized).decode('utf-8')
+                encoded_blobs.append(encoded_blob)
+            return {"ok": True, "encrypted_blobs": encoded_blobs}
+        except Exception as e:
+            return {"ok": False, "error": repr(e)}
+
+    def call_remind(
+        self,
+        index_name: str,
+        indices: List[Dict[str, Any]],
+        output_fields: List[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Retrieves metadata for indices returned by Vault after decryption.
+
+        Args:
+            index_name: Index to fetch metadata from.
+            indices: List of dicts with "shard_idx", "row_idx", "score".
+            output_fields: Fields to include (default: ["metadata"]).
+
+        Returns:
+            Dict with ok, results (List[dict]), or error.
+        """
+        try:
+            if output_fields is None:
+                output_fields = ["metadata"]
+
+            index = ev.Index(index_name)
+            # Indexer.get_metadata expects [{"shard_idx": int, "row_idx": int}]
+            idx_list = []
+            for entry in indices:
+                row_idx = entry.get("row_idx")
+                if row_idx is None:
+                    raise ValueError("Missing required 'row_idx' in index entry: " + repr(entry))
+                idx_list.append(
+                    {
+                        "shard_idx": entry.get("shard_idx", 0),
+                        "row_idx": row_idx,
+                    }
+                )
+            results = index.indexer.get_metadata(
+                index_name=index_name,
+                idx=idx_list,
+                fields=output_fields,
+            )
+            # Convert protobuf Metadata objects to dicts and attach scores
+            results_with_scores = []
+            for i, entry in enumerate(indices):
+                if i < len(results):
+                    metadata_obj = results[i]
+                    # Protobuf objects: use MessageToDict for proper field extraction
+                    if hasattr(metadata_obj, 'ListFields'):
+                        result_dict = MessageToDict(metadata_obj, preserving_proto_field_name=True)
+                    elif hasattr(metadata_obj, '_asdict'):
+                        result_dict = metadata_obj._asdict()
+                    elif hasattr(metadata_obj, '__dict__'):
+                        result_dict = metadata_obj.__dict__.copy()
+                    else:
+                        result_dict = {"metadata": str(metadata_obj)}
+
+                    # Attach score from Vault
+                    result_dict["score"] = entry.get("score", 0.0)
+                    results_with_scores.append(result_dict)
+            return self._to_json_available({"ok": True, "results": results_with_scores})
+        except Exception as e:
+            return {"ok": False, "error": repr(e)}
 
     @staticmethod
     def _to_json_available(obj: Any) -> Any:

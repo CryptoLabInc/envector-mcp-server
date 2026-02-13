@@ -77,7 +77,7 @@ class SBERTSDKAdapter:
     """
     Adapter for SBERT (Sentence Transformer) SDK interactions.
     """
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> None:
+    def __init__(self, model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2") -> None:
         """
         Initializes the SBERTSDKAdapter with the provided model name.
 
@@ -101,7 +101,7 @@ class HuggingFaceSDKAdapter(EmbeddingAdapter):
     """
     Adapter for HuggingFace SDK interactions.
     """
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2", cache_dir: str = None) -> None:
+    def __init__(self, model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", cache_dir: str = None) -> None:
         """
         Initializes the HuggingFaceSDKAdapter with the provided model name and cache directory.
 

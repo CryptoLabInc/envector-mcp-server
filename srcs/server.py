@@ -15,10 +15,13 @@ Expected MCP Tool Return Format:
 """
 
 import argparse
+import logging
 from typing import Union, List, Dict, Any, Optional, Annotated, TYPE_CHECKING
 import numpy as np
 import os, sys, signal
 import json
+
+logger = logging.getLogger("rune.mcp")
 from pydantic import Field
 # load environment variables from .env file if present
 from dotenv import load_dotenv
@@ -29,9 +32,64 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path:
     sys.path.append(CURRENT_DIR)
 
-from fastmcp import FastMCP  # pip install fastmcp
+from fastmcp import FastMCP, Client  # pip install fastmcp
 from fastmcp.exceptions import ToolError
+from mcp.types import ToolAnnotations
 from adapter import EnVectorSDKAdapter, EmbeddingAdapter, DocumentPreprocessingAdapter
+from adapter.vault_client import VaultClient, VaultClientSync, create_vault_client, DecryptResult, VaultError
+
+
+def fetch_keys_from_vault(vault_endpoint: str, vault_token: str, key_path: str) -> bool:
+    """
+    Fetches public keys (EncKey, EvalKey) from Rune-Vault MCP.
+
+    Args:
+        vault_endpoint: Rune-Vault MCP endpoint URL (e.g., http://vault-mcp:50080/mcp)
+        vault_token: Authentication token for Vault
+        key_path: Local directory to save the fetched keys
+
+    Returns:
+        bool: True if keys were successfully fetched and saved
+    """
+    import asyncio
+
+    async def _fetch():
+        try:
+            client = Client(vault_endpoint)
+            async with client:
+                result = await client.call_tool("get_public_key", {"token": vault_token})
+
+                # Parse the result - handle different response formats
+                if hasattr(result, 'content'):
+                    # TextContent format
+                    content = result.content[0].text if result.content else None
+                elif hasattr(result, 'data'):
+                    content = result.data
+                else:
+                    content = str(result)
+
+                if content:
+                    bundle = json.loads(content)
+
+                    # Ensure key directory exists
+                    os.makedirs(key_path, exist_ok=True)
+
+                    # Save each key file
+                    for filename, key_content in bundle.items():
+                        filepath = os.path.join(key_path, filename)
+                        with open(filepath, 'w') as f:
+                            f.write(key_content)
+                        logger.info(f"Saved {filename} to {filepath}")
+
+                    return True
+
+        except Exception as e:
+            logger.error(f"Failed to fetch keys from Vault: {e}")
+            return False
+
+        return False
+
+    return asyncio.run(_fetch())
 
 # # For Health Check (Starlette Imports -> Included in FastMCP as dependency)
 # from starlette.requests import Request
@@ -40,6 +98,11 @@ from adapter import EnVectorSDKAdapter, EmbeddingAdapter, DocumentPreprocessingA
 class MCPServerApp:
     """
     Main application class for the MCP server.
+
+    Security Model (with Rune-Vault):
+    - MCP Server handles embeddings, query encryption, and orchestration
+    - Rune-Vault holds secret key and performs all decryption
+    - Agent never has access to secret key
     """
     def __init__(
             self,
@@ -47,19 +110,59 @@ class MCPServerApp:
             mcp_server_name: str = "envector_mcp_server",
             embedding_adapter: "EmbeddingAdapter" = None,
             document_preprocessor: DocumentPreprocessingAdapter = None,
+            vault_client: Optional[VaultClientSync] = None,
         ) -> None:
         """
         Initializes the MCPServerApp with the given adapter and server name.
         Args:
             adapter (EnVectorSDKAdapter): The enVector SDK adapter instance.
             mcp_server_name (str): The name of the MCP server.
+            vault_client (VaultClientSync): Optional Vault client for secure decryption.
         """
         # adapters
         self.envector = envector_adapter
         self.embedding = embedding_adapter
         self.preprocessor = document_preprocessor
+        self.vault = vault_client
         # mcp
         self.mcp = FastMCP(name=mcp_server_name)
+
+        # ---------- Common Query Preprocessing ---------- #
+        def _preprocess(raw_query: Any) -> Union[List[float], List[List[float]]]:
+            """Convert raw query input (string, ndarray, list) into a valid vector or batch of vectors."""
+            if isinstance(raw_query, str):
+                raw_query = raw_query.strip()
+
+                if self.embedding is not None:
+                    return self.embedding.get_embedding([raw_query])[0]
+
+                if not raw_query:
+                    raise ValueError("`query` string is empty. Provide a JSON array of floats or precomputed embedding.")
+                try:
+                    raw_query = json.loads(raw_query)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(
+                        "Plain text is not supported for `query`. Convert the text into an embedding vector "
+                        "and pass it as a JSON array (e.g., [[0.1, 0.2], ...])."
+                    ) from exc
+
+            if isinstance(raw_query, np.ndarray):
+                raw_query = raw_query.tolist()
+            elif isinstance(raw_query, list) and all(isinstance(q, np.ndarray) for q in raw_query):
+                raw_query = [q.tolist() for q in raw_query]
+
+            def _is_vector(value: Any) -> bool:
+                return isinstance(value, list) and all(isinstance(v, (int, float)) for v in value)
+
+            if _is_vector(raw_query):
+                return raw_query
+            if isinstance(raw_query, list) and all(_is_vector(item) for item in raw_query):
+                return raw_query
+
+            raise ValueError(
+                "`query` must be a list of floats or a list of float lists. "
+                f"Received type: {type(raw_query).__name__}"
+            )
 
         # # ---------- Health Check Route ---------- #
         # @self.mcp.custom_route("/health/", methods=["GET"])
@@ -74,7 +177,8 @@ class MCPServerApp:
         # ---------- MCP Tools: Create Index ---------- #
         @self.mcp.tool(
             name="create_index",
-            description="Create an index in enVector."
+            description="Create an index in enVector.",
+            annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False)
         )
         async def tool_create_index(
             index_name: Annotated[str, Field(description="index name to create")],
@@ -98,7 +202,8 @@ class MCPServerApp:
         # ---------- MCP Tools: Get Index List ---------- #
         @self.mcp.tool(
             name="get_index_list",
-            description="Get the list of indexes from the enVector SDK."
+            description="Get the list of indexes from the enVector SDK.",
+            annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False)
         )
         async def tool_get_index_list() -> Dict[str, Any]:
             """
@@ -113,7 +218,8 @@ class MCPServerApp:
         # ---------- MCP Tools: Get Index Info ---------- #
         @self.mcp.tool(
             name="get_index_info",
-            description="Get information about a specific index from the enVector SDK."
+            description="Get information about a specific index from the enVector SDK.",
+            annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False)
         )
         async def tool_get_index_info(
             index_name: Annotated[str, Field(description="index name to get information for")],
@@ -137,7 +243,8 @@ class MCPServerApp:
                 "Insert vectors or metadata using enVector SDK. "
                 "Allowing to insert metadata as text only as supporting embedding the metadata as vectors. "
                 "Allowing one or more vectors, but insert 'batch_size' vectors in once would be more efficient. "
-            )
+            ),
+            annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False)
         )
         async def tool_insert(
             index_name: Annotated[str, Field(description="index name to insert data into")],
@@ -201,7 +308,8 @@ class MCPServerApp:
                 "Insert long documents from the given path using enVector SDK. "
                 "This tool read document in a directory, preprocess and chunk them, then embed and insert into enVector. "
                 "This tool requires a path of documents to read and insert"
-            )
+            ),
+            annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False)
         )
         async def tool_insert_documents_from_path(
             index_name: Annotated[str, Field(description="index name to insert data into")],
@@ -224,7 +332,8 @@ class MCPServerApp:
                 "Insert long documents from the given texts using enVector SDK. "
                 "This tool read document in a directory, preprocess and chunk them, then embed and insert into enVector. "
                 "This tool requires a list of text documents loaded by LLMs to read and insert"
-            )
+            ),
+            annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False)
         )
         async def tool_insert_documents_from_text(
             index_name: Annotated[str, Field(description="index name to insert data into")],
@@ -243,11 +352,19 @@ class MCPServerApp:
         # ---------- MCP Tools: Search ---------- #
         @self.mcp.tool(
             name="search",
-            description="Perform vector search and Retrieve Metadata using enVector SDK."
+            description=(
+                "Search your own encrypted vector data on enVector Cloud. "
+                "The decryption key (secret key) is held locally by this MCP server runtime, "
+                "so this tool is for indexes where the data owner is the current operator. "
+                "Use 'remember' instead when accessing shared team memory where the "
+                "decryption key is managed by a separate Vault server. "
+                "Accepts text queries (auto-embedded), vector arrays, or JSON-encoded vectors."
+            ),
+            annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False)
         )
         async def tool_search(
             index_name: Annotated[str, Field(description="index name to search from")],
-            query: Annotated[Any, Field(description="search query vector (list), batch of vectors, or JSON-encoded string")],
+            query: Annotated[Any, Field(description="search query: natural language text, vector (list of floats), or JSON-encoded vector")],
             topk: Annotated[int, Field(description="number of top-k results to return")],
         ) -> Dict[str, Any]:
             """
@@ -262,47 +379,170 @@ class MCPServerApp:
             Returns:
                 Dict[str, Any]: The search results from the enVector SDK adapter.
             """
-            def _preprocess_query(raw_query: Any) -> Union[List[float], List[List[float]]]:
-                # print("DEBUG preprocess called with", type(raw_query), raw_query)
-                if isinstance(raw_query, str):
-                    raw_query = raw_query.strip()
-
-                    if self.embedding is not None:
-                        return self.embedding.get_embedding([raw_query])[0]
-
-                    if not raw_query:
-                        raise ValueError("`query` string is empty. Provide a JSON array of floats or precomputed embedding.")
-                    try:
-                        raw_query = json.loads(raw_query)
-                    except json.JSONDecodeError as exc:
-                        raise ValueError(
-                            "Plain text is not supported for `query`. Convert the text into an embedding vector "
-                            "and pass it as a JSON array (e.g., [[0.1, 0.2], ...])."
-                        ) from exc
-
-                if isinstance(raw_query, np.ndarray):
-                    raw_query = raw_query.tolist()
-                elif isinstance(raw_query, list) and all(isinstance(q, np.ndarray) for q in raw_query):
-                    raw_query = [q.tolist() for q in raw_query]
-
-                def _is_vector(value: Any) -> bool:
-                    return isinstance(value, list) and all(isinstance(v, (int, float)) for v in value)
-
-                if _is_vector(raw_query):
-                    return raw_query
-                if isinstance(raw_query, list) and all(_is_vector(item) for item in raw_query):
-                    return raw_query
-
-                raise ValueError(
-                    "`query` must be a list of floats or a list of float lists. "
-                    f"Received type: {type(raw_query).__name__}"
-                )
-
             try:
-                preprocessed_query = _preprocess_query(query)
+                preprocessed_query = _preprocess(query)
             except ValueError as exc:
                 raise ToolError(f"Invalid query parameter: {exc}") from exc
             return self.envector.call_search(index_name=index_name, query=preprocessed_query, topk=topk)
+
+        # ---------- MCP Tools: Remember (Vault-Secured Retrieval) ---------- #
+        @self.mcp.tool(
+            name="remember",
+            description=(
+                "Recall from shared team memory stored on enVector Cloud. "
+                "Unlike 'search' where the data owner is the local operator, "
+                "'remember' accesses indexes whose decryption key (secret key) is held "
+                "exclusively by a team-shared Rune-Vault server — never loaded into "
+                "this MCP server runtime. This isolation prevents agent tampering "
+                "attacks from indiscriminately decrypting shared vectors. "
+                "Vault enforces access policy (max 10 results per query, audit trail). "
+                "Use this when recalling shared team knowledge: past decisions, "
+                "institutional context, onboarding material, or any collectively "
+                "owned memory. "
+                "Accepts text queries (auto-embedded), vector arrays, or JSON-encoded vectors."
+            ),
+            annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False)
+        )
+        async def tool_remember(
+            index_name: Annotated[str, Field(description="index name to remember from")],
+            query: Annotated[Union[str, List[float]], Field(description="single recall query: natural language text or vector (list of floats)")],
+            topk: Annotated[int, Field(description="number of results to recall (1-10, enforced by Vault policy)")],
+            request_id: Annotated[str, Field(description="optional correlation ID for audit trail")] = "",
+        ) -> Dict[str, Any]:
+            """
+            Recall organizational decisions and context from encrypted memory.
+            This tool accepts a SINGLE query only. For batch queries, use the search tool instead.
+
+            Pipeline:
+            1. Embed query, run encrypted similarity scoring on enVector Cloud → result ciphertext
+            2. Rune-Vault decrypts result ciphertext with secret key, selects top-k (secret key never leaves Vault)
+            3. Retrieve metadata for top-k indices from enVector Cloud
+
+            Args:
+                index_name (str): The name of index to recall from.
+                query (Union[str, List[float]]): Single recall query (text or vector).
+                topk (int): Number of top results (max 10, enforced by Vault).
+                request_id (str): Optional correlation ID for audit trail.
+
+            Returns:
+                Dict[str, Any]: The recalled results and audit information,
+            """
+            if self.vault is None:
+                return {
+                    "ok": False,
+                    "error": "Vault not configured. Set RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN environment variables.",
+                }
+
+
+            try:
+                preprocessed_query = _preprocess(query)
+            except ValueError as exc:
+                return {"ok": False, "error": f"Query preprocessing failed: {exc}"}
+
+            if isinstance(preprocessed_query, list) and len(preprocessed_query) > 0 and isinstance(preprocessed_query[0], list):
+                return {
+                    "ok": False,
+                    "error": "Remember tool accepts single query only. Use search tool for batch queries."
+                }
+
+            if topk > 10:
+                return {"ok": False, "error": "Policy: max top_k is 10."}
+
+            try:
+                # Step 1: encrypted search → result ciphertext
+                scoring_result = self.envector.call_score(
+                    index_name=index_name,
+                    query=[preprocessed_query]
+                )
+                if not scoring_result.get("ok"):
+                    return {"ok": False, "error": scoring_result.get("error"), "request_id": request_id or "N/A"}
+
+                blobs = scoring_result["encrypted_blobs"]
+                if not blobs:
+                    return {"ok": True, "results": [], "request_id": request_id or "N/A"}
+
+                # Step 2: Vault decrypts + top-k
+                vault_result = self.vault.decrypt_search_results(
+                    encrypted_blob_b64=blobs[0],
+                    top_k=topk,
+                    request_id=request_id or None
+                )
+
+                # Step 3: Retrieve encrypted metadata
+                metadata_result = self.envector.call_remind(
+                    index_name=index_name,
+                    indices=vault_result.results,
+                    output_fields=["metadata"]
+                )
+                if not metadata_result.get("ok"):
+                    return {"ok": False, "error": metadata_result.get("error"), "request_id": vault_result.request_id}
+
+                # Step 4: Decrypt metadata via Vault (MetadataKey never leaves Vault)
+                encrypted_entries = metadata_result.get("results", [])
+                encrypted_blobs = [
+                    entry.get("data", "") for entry in encrypted_entries
+                ]
+                if encrypted_blobs and any(encrypted_blobs):
+                    decrypted_metadata = self.vault.decrypt_metadata(
+                        encrypted_metadata_list=[b for b in encrypted_blobs if b is not None]
+                    )
+                    # Merge decrypted metadata with scores
+                    for i, entry in enumerate(encrypted_entries):
+                        if i < len(decrypted_metadata):
+                            entry["metadata"] = decrypted_metadata[i]
+                        entry.pop("data", None)
+
+                return {
+                    "ok": True,
+                    "results": encrypted_entries,
+                    "request_id": vault_result.request_id,
+                    "total_vectors": vault_result.total_vectors,
+                }
+
+            except VaultError as e:
+                return {"ok": False, "error": f"Vault error: {e}", "request_id": request_id or "N/A"}
+            except Exception as e:
+                return {"ok": False, "error": str(e), "request_id": request_id or "N/A"}
+
+        # ---------- MCP Tools: Vault Health Check ---------- #
+        @self.mcp.tool(
+            name="vault_status",
+            description="Check Rune-Vault connection status and security mode.",
+            annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False)
+        )
+        async def tool_vault_status() -> Dict[str, Any]:
+            """
+            Returns the current Vault integration status.
+
+            Returns:
+                Dict with Vault connection status and security mode information.
+            """
+            if self.vault is None:
+                return {
+                    "ok": True,
+                    "vault_configured": False,
+                    "secure_search_available": False,
+                    "mode": "standard (no Vault)",
+                    "warning": "secret key may be accessible locally. Configure Vault for secure mode."
+                }
+
+            # Check Vault health via /health endpoint
+            try:
+                vault_healthy = self.vault.health_check()
+                return {
+                    "ok": True,
+                    "vault_configured": True,
+                    "vault_endpoint": getattr(self.vault, 'vault_endpoint', 'unknown'),
+                    "secure_search_available": vault_healthy,
+                    "mode": "secure (Vault-backed)",
+                    "vault_healthy": vault_healthy,
+                }
+            except Exception as e:
+                return {
+                    "ok": False,
+                    "vault_configured": True,
+                    "error": f"Vault health check failed: {e}"
+                }
 
     def run_http_service(self, host: str, port: int) -> None:
         """
@@ -388,11 +628,6 @@ if __name__ == "__main__":
         help="Encrypt the query vectors."
     )
     parser.add_argument(
-        "--envector-cloud-access-token",
-        default=os.getenv("ENVECTOR_CLOUD_ACCESS_TOKEN", None),
-        help="enVector cloud access token."
-    )
-    parser.add_argument(
         "--embedding-mode",
         default=os.getenv("EMBEDDING_MODE", "femb"),
         choices=("femb", "sbert", "hf", "openai"),
@@ -400,8 +635,14 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--embedding-model",
-        default=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
+        default=os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"),
         help="Embedding model name for enVector.",
+    )
+    # Rune-Vault Integration Options
+    parser.add_argument(
+        "--no-auto-key-setup",
+        action="store_true",
+        help="Disable automatic key generation. Use when keys are provided externally (e.g., from Rune-Vault).",
     )
     args = parser.parse_args()
     run_mode = args.mode.lower()
@@ -431,11 +672,31 @@ if __name__ == "__main__":
     - ENVECTOR_EVAL_MODE: The evaluation mode of the `enVector` ["rmp", "mm"] (default: "rmp")
     """
     ENVECTOR_ADDRESS = args.envector_address if args.envector_address else args.envector_host + ":" + str(args.envector_port)
-    ENVECTOR_CLOUD_ACCESS_TOKEN = args.envector_cloud_access_token
+    ENVECTOR_API_KEY = os.getenv("ENVECTOR_API_KEY", None)
     ENVECTOR_KEY_ID = args.envector_key_id
     ENVECTOR_KEY_PATH = args.envector_key_path
     ENVECTOR_EVAL_MODE = args.envector_eval_mode
     ENCRYPTED_QUERY = args.encrypted_query # Plain-Cipher Query Setting
+
+    # Rune-Vault Integration
+    # env var default "true" → auto-generation ON; CLI --no-auto-key-setup overrides to OFF
+    _env_var = os.getenv("ENVECTOR_AUTO_KEY_SETUP", "true").lower() in ("true", "1", "yes")
+    AUTO_KEY_SETUP = _env_var and not args.no_auto_key_setup
+    RUNEVAULT_ENDPOINT = os.getenv("RUNEVAULT_ENDPOINT", None)
+    RUNEVAULT_TOKEN = os.getenv("RUNEVAULT_TOKEN", None)
+
+    # If Vault endpoint is provided, fetch keys from Vault
+    if RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN:
+        logger.info(f"Fetching public keys from Vault: {RUNEVAULT_ENDPOINT}")
+        if fetch_keys_from_vault(RUNEVAULT_ENDPOINT, RUNEVAULT_TOKEN, ENVECTOR_KEY_PATH):
+            logger.info("Successfully fetched keys from Vault")
+            AUTO_KEY_SETUP = False  # Keys provided externally, no need to auto-generate
+        else:
+            logger.warning("Failed to fetch keys from Vault, falling back to local keys")
+    elif RUNEVAULT_ENDPOINT and not RUNEVAULT_TOKEN:
+        logger.warning("Vault endpoint provided but no token specified. Skipping Vault integration.")
+    elif not AUTO_KEY_SETUP:
+        logger.info(f"Using externally provided keys from: {ENVECTOR_KEY_PATH}")
 
     envector_adapter = EnVectorSDKAdapter(
         address=ENVECTOR_ADDRESS,
@@ -443,7 +704,8 @@ if __name__ == "__main__":
         key_path=ENVECTOR_KEY_PATH,
         eval_mode=ENVECTOR_EVAL_MODE,
         query_encryption=ENCRYPTED_QUERY,
-        access_token=ENVECTOR_CLOUD_ACCESS_TOKEN,
+        access_token=ENVECTOR_API_KEY,
+        auto_key_setup=AUTO_KEY_SETUP,
     )
 
     # Import embedding adapter lazily to avoid heavy dependencies when not needed (e.g., in tests)
@@ -455,16 +717,31 @@ if __name__ == "__main__":
             model_name=args.embedding_model
         )
     else:
-        # print("[WARN] No embedding model specified. Proceeding without embedding adapter.")
+        # logger.warning("No embedding model specified. Proceeding without embedding adapter.")
         embedding_adapter = None
 
     document_preprocessor = DocumentPreprocessingAdapter()
+
+    # Initialize Vault client for secure decryption
+    vault_client = None
+    if RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN:
+        logger.info(f"Initializing Vault client for secure search: {RUNEVAULT_ENDPOINT}")
+        vault_client = VaultClientSync(
+            vault_endpoint=RUNEVAULT_ENDPOINT,
+            vault_token=RUNEVAULT_TOKEN,
+            timeout=30.0
+        )
+        logger.info("Vault client initialized - remember tool available")
+    else:
+        logger.info("Vault not configured - remember tool will be unavailable")
+        logger.info("To enable remember, set RUNEVAULT_ENDPOINT and RUNEVAULT_TOKEN environment variables")
 
     app = MCPServerApp(
         mcp_server_name=MCP_SERVER_NAME,
         envector_adapter=envector_adapter,
         embedding_adapter=embedding_adapter,
         document_preprocessor=document_preprocessor,
+        vault_client=vault_client,
     )
 
     def _handle_shutdown(signum, frame):
