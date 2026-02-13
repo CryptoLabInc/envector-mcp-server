@@ -24,7 +24,7 @@ This document let users know how to use `enVector MCP Server`
 - `get_index_info`: Get information about a specific index in enVector.
 - `create_index`: Create an index in enVector.
 - `insert`: Insert vectors and the corresponding metadata into enVector index. Support to specify embedding model to get embedding vectors to insert.
-- `search`: Perform homomorphic encrypted vector similarity search and Retrieve Metadata from enVector. Support to specify embedding model to get embedding vectors to search.
+- `search`: Perform homomorphic encrypted vector similarity search and retrieve metadata from enVector. Support to specify embedding model to get embedding vectors to search.
 - `remember`: Vault-secured organizational memory recall. Orchestrates a 3-step pipeline: (1) homomorphic encrypted vector similarity search on encrypted index, (2) Vault decryption of result ciphertext + top-k selection, (3) metadata retrieval. Requires `RUNEVAULT_ENDPOINT` and `RUNEVAULT_TOKEN` environment variables.
 - `vault_status`: Check Rune-Vault connection status and security mode.
 - `insert_documents_from_path`: Insert documents from the given path. Support to read and chunk the document file, get embedding of texts and insert them into enVector.
