@@ -38,7 +38,7 @@ from adapter.vault_client import VaultClient, VaultClientSync, create_vault_clie
 
 def fetch_keys_from_vault(vault_endpoint: str, vault_token: str, key_path: str) -> bool:
     """
-    Fetches public keys (EncKey, EvalKey, MetadataKey) from Rune-Vault MCP.
+    Fetches public keys (EncKey, EvalKey) from Rune-Vault MCP.
 
     Args:
         vault_endpoint: Rune-Vault MCP endpoint URL (e.g., http://vault-mcp:50080/mcp)
@@ -465,7 +465,7 @@ class MCPServerApp:
                     request_id=request_id or None
                 )
 
-                # Step 3: Retrieve metadata
+                # Step 3: Retrieve encrypted metadata
                 metadata_result = self.envector.call_remind(
                     index_name=index_name,
                     indices=vault_result.results,
@@ -474,9 +474,24 @@ class MCPServerApp:
                 if not metadata_result.get("ok"):
                     return {"ok": False, "error": metadata_result.get("error"), "request_id": vault_result.request_id}
 
+                # Step 4: Decrypt metadata via Vault (MetadataKey never leaves Vault)
+                encrypted_entries = metadata_result.get("results", [])
+                encrypted_blobs = [
+                    entry.get("data", "") for entry in encrypted_entries
+                ]
+                if encrypted_blobs and any(encrypted_blobs):
+                    decrypted_metadata = self.vault.decrypt_metadata(
+                        encrypted_metadata_list=[b for b in encrypted_blobs if b]
+                    )
+                    # Merge decrypted metadata with scores
+                    for i, entry in enumerate(encrypted_entries):
+                        if i < len(decrypted_metadata):
+                            entry["metadata"] = decrypted_metadata[i]
+                        entry.pop("data", None)
+
                 return {
                     "ok": True,
-                    "results": metadata_result.get("results", []),
+                    "results": encrypted_entries,
                     "request_id": vault_result.request_id,
                     "total_vectors": vault_result.total_vectors,
                 }
@@ -508,17 +523,16 @@ class MCPServerApp:
                     "warning": "secret key may be accessible locally. Configure Vault for secure mode."
                 }
 
-            # Check Vault health
+            # Check Vault health via /health endpoint
             try:
-                # Simple sync check - in production would use async health check
-                vault_healthy = True  # TODO: Implement actual health check
+                vault_healthy = self.vault.health_check()
                 return {
                     "ok": True,
                     "vault_configured": True,
                     "vault_endpoint": getattr(self.vault, 'vault_endpoint', 'unknown'),
-                    "secure_search_available": True,
+                    "secure_search_available": vault_healthy,
                     "mode": "secure (Vault-backed)",
-                    "vault_healthy": vault_healthy
+                    "vault_healthy": vault_healthy,
                 }
             except Exception as e:
                 return {

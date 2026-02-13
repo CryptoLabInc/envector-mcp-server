@@ -428,7 +428,7 @@ services:
 ### Key Distribution Flow
 
 1. **Startup**: envector-mcp-server calls Vault's `get_public_key` tool
-2. **Key Fetch**: Vault returns EncKey.json, EvalKey.json, MetadataKey.json
+2. **Key Fetch**: Vault returns EncKey.json, EvalKey.json
 3. **Local Save**: Keys are saved to `--envector-key-path` directory
 4. **SDK Init**: pyenvector SDK initializes with fetched keys (`auto_key_setup=False`)
 5. **Operations**: Insert/Search operations use public keys for encryption

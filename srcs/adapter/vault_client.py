@@ -218,6 +218,84 @@ class VaultClient:
         """Async sleep helper."""
         await asyncio.sleep(seconds)
 
+    async def decrypt_metadata(
+        self,
+        encrypted_metadata_list: List[str],
+    ) -> List:
+        """
+        Call Vault MCP to decrypt AES-encrypted metadata.
+
+        Args:
+            encrypted_metadata_list: List of Base64-encoded encrypted metadata strings.
+
+        Returns:
+            List of decrypted metadata objects (dicts, strings, etc.)
+
+        Raises:
+            VaultError: If Vault call fails after retries
+        """
+        payload = {
+            "method": "tools/call",
+            "params": {
+                "name": "decrypt_metadata",
+                "arguments": {
+                    "token": self.vault_token,
+                    "encrypted_metadata_list": encrypted_metadata_list,
+                }
+            }
+        }
+
+        last_error = None
+        for attempt in range(self.max_retries):
+            try:
+                client = await self._get_client()
+                response = await client.post(
+                    f"{self.vault_endpoint}/mcp/v1/tools/call",
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+
+                if response.status_code == 200:
+                    result_data = response.json()
+
+                    if "result" in result_data:
+                        tool_result = result_data["result"]
+                        if isinstance(tool_result, str):
+                            tool_result = json.loads(tool_result)
+                        if isinstance(tool_result, dict) and "error" in tool_result:
+                            raise VaultError(tool_result["error"])
+                        return tool_result
+                    elif "content" in result_data:
+                        content = result_data["content"]
+                        if isinstance(content, list) and len(content) > 0:
+                            text = content[0].get("text", "[]")
+                            parsed = json.loads(text)
+                            if isinstance(parsed, dict) and "error" in parsed:
+                                raise VaultError(parsed["error"])
+                            return parsed
+
+                    raise VaultError(f"Unexpected response format: {result_data}")
+
+                elif response.status_code == 429:
+                    retry_after = int(response.headers.get("Retry-After", "5"))
+                    await self._async_sleep(retry_after)
+                    continue
+                else:
+                    raise VaultError(f"Vault returned {response.status_code}: {response.text}")
+
+            except httpx.TimeoutException as e:
+                last_error = VaultError(f"Vault timeout: {e}")
+            except httpx.HTTPError as e:
+                last_error = VaultError(f"HTTP error: {e}")
+            except json.JSONDecodeError as e:
+                last_error = VaultError(f"Invalid JSON from Vault: {e}")
+                break
+
+            if attempt < self.max_retries - 1:
+                await self._async_sleep(2 ** attempt)
+
+        raise last_error or VaultError("Unknown error communicating with Vault")
+
     async def health_check(self) -> bool:
         """Check if Vault is reachable."""
         try:
@@ -314,6 +392,73 @@ class VaultClientSync:
 
         except Exception as e:
             raise VaultError(f"Failed to call Vault: {e}")
+
+    def decrypt_metadata(
+        self,
+        encrypted_metadata_list: List[str],
+    ) -> List:
+        """
+        Synchronously call Vault MCP to decrypt AES-encrypted metadata.
+
+        Args:
+            encrypted_metadata_list: List of Base64-encoded encrypted metadata strings.
+
+        Returns:
+            List of decrypted metadata objects.
+        """
+        payload = {
+            "method": "tools/call",
+            "params": {
+                "name": "decrypt_metadata",
+                "arguments": {
+                    "token": self.vault_token,
+                    "encrypted_metadata_list": encrypted_metadata_list,
+                }
+            }
+        }
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    f"{self.vault_endpoint}/mcp/v1/tools/call",
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+
+                if response.status_code == 200:
+                    result_data = response.json()
+
+                    if "result" in result_data:
+                        tool_result = result_data["result"]
+                        if isinstance(tool_result, str):
+                            tool_result = json.loads(tool_result)
+                        if isinstance(tool_result, dict) and "error" in tool_result:
+                            raise VaultError(tool_result["error"])
+                        return tool_result
+                    elif "content" in result_data:
+                        content = result_data["content"]
+                        if isinstance(content, list) and len(content) > 0:
+                            text = content[0].get("text", "[]")
+                            parsed = json.loads(text)
+                            if isinstance(parsed, dict) and "error" in parsed:
+                                raise VaultError(parsed["error"])
+                            return parsed
+
+                    raise VaultError(f"Unexpected response format: {result_data}")
+
+                raise VaultError(f"Vault returned {response.status_code}: {response.text}")
+
+        except Exception as e:
+            raise VaultError(f"Failed to call Vault: {e}")
+
+    def health_check(self) -> bool:
+        """Check if Vault is reachable."""
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                response = client.get(f"{self.vault_endpoint}/health")
+                return response.status_code == 200
+        except Exception:
+            return False
 
 
 def create_vault_client(

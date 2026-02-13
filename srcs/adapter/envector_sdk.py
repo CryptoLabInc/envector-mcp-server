@@ -5,6 +5,7 @@ import base64
 import numpy as np
 import pyenvector as ev  # pip install pyenvector
 from pyenvector.crypto.block import CipherBlock
+from google.protobuf.json_format import MessageToDict
 
 from pathlib import Path
 
@@ -271,19 +272,20 @@ class EnVectorSDKAdapter:
                 idx=idx_list,
                 fields=output_fields,
             )
-            # Convert Metadata objects to dicts and attach scores
+            # Convert protobuf Metadata objects to dicts and attach scores
             results_with_scores = []
             for i, entry in enumerate(indices):
                 if i < len(results):
-                    # Convert Metadata object to dict using vars() or __dict__
                     metadata_obj = results[i]
-                    if hasattr(metadata_obj, '__dict__'):
-                        result_dict = metadata_obj.__dict__.copy()
+                    # Protobuf objects: use MessageToDict for proper field extraction
+                    if hasattr(metadata_obj, 'ListFields'):
+                        result_dict = MessageToDict(metadata_obj, preserving_proto_field_name=True)
                     elif hasattr(metadata_obj, '_asdict'):
                         result_dict = metadata_obj._asdict()
+                    elif hasattr(metadata_obj, '__dict__'):
+                        result_dict = metadata_obj.__dict__.copy()
                     else:
-                        # Fallback: extract known fields
-                        result_dict = {"metadata": getattr(metadata_obj, "metadata", str(metadata_obj))}
+                        result_dict = {"metadata": str(metadata_obj)}
 
                     # Attach score from Vault
                     result_dict["score"] = entry.get("score", 0.0)
