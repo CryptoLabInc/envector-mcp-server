@@ -151,7 +151,7 @@ Arguments to run Python scripts:
 
 - ⚙️ Embedding options
     - `--embedding-mode`: Mode of the embedding model. Supports `femb` (FastEmb), `hf` (huggingface), `sbert` (SBERT; sentence-transformers), and `openai` (OpenAI API). For `openai`, required to set environmental variable `OPENAI_API_KEY`.
-    - `--embedding-model`: Embedding model name to use enVector. The `sentence-transformers/all-MiniLM-L6-v2` set as default, which dimension is 384.
+    - `--embedding-model`: Embedding model name to use enVector. The `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` is set as the default, whose embedding dimension is 384.
 
 <details>
 <summary>Supporting embedding models</summary>
@@ -345,7 +345,7 @@ When used with [Rune](https://github.com/CryptoLabInc/rune), the envector-mcp-se
   │ Tools:                                   │
   │  insert / search    → direct pipeline    │
   │  remember           → Vault pipeline:    │
-  │    1. search(decrypt=False) → ciphertext │
+  │    1. scoring() → ciphertext             │
   │    2. Vault decrypt + top-k selection    │
   │    3. get_metadata_by_indices → results  │
   └─────────┬──────────────────┬─────────────┘
@@ -437,8 +437,8 @@ services:
 
 When an agent calls the `remember` tool, the MCP server orchestrates a 3-step pipeline:
 
-1. **Search**: `index.search(query, decrypt=False)` → result ciphertext (base64-serialized). The Cloud computes encrypted similarity scores and packs into a result ciphertext.
+1. **Search**: `index.scoring(query)` → result ciphertext (base64-serialized). The Cloud computes encrypted similarity scores and packs into a result ciphertext.
 2. **Vault Decrypt**: Send result ciphertext to Vault's `decrypt_scores(token, blob, top_k)`. Vault decrypts with secret key to obtain similarity values, selects top-k → `[{index, score}, ...]`
-3. **Retrieve**: `index.get_metadata_by_indices(indices)` → plaintext metadata returned to agent
+3. **Retrieve**: `index.indexer.get_metadata(indices)` → plaintext metadata returned to agent
 
 Secret key never leaves Vault. The MCP server and agent only see the result ciphertext and final metadata.

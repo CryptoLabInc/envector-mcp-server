@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class DecryptResult:
     """Result from Vault decryption of the result ciphertext."""
     ok: bool
-    results: List[Dict[str, Any]]  # [{index: int, score: float}, ...] — similarity values
+    results: List[Dict[str, Any]]  # [{shard_idx: int, row_idx: int, score: float}, ...] — similarity values
     request_id: str
     timestamp: float
     total_vectors: int = 0
