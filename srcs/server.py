@@ -481,7 +481,7 @@ class MCPServerApp:
                 ]
                 if encrypted_blobs and any(encrypted_blobs):
                     decrypted_metadata = self.vault.decrypt_metadata(
-                        encrypted_metadata_list=[b for b in encrypted_blobs if b]
+                        encrypted_metadata_list=[b for b in encrypted_blobs if b is not None]
                     )
                     # Merge decrypted metadata with scores
                     for i, entry in enumerate(encrypted_entries):
